@@ -1,0 +1,462 @@
+[
+  {
+    "model": "core.account",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "name": "Main Checking",
+      "account_type": "checking",
+      "balance": "2500.00",
+      "currency": "USD",
+      "is_active": true,
+      "account_number": "****1234",
+      "institution": "Chase Bank",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.account",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "name": "Savings Account",
+      "account_type": "savings",
+      "balance": "10000.00",
+      "currency": "USD",
+      "is_active": true,
+      "account_number": "****5678",
+      "institution": "Chase Bank",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.account",
+    "pk": 3,
+    "fields": {
+      "user": 1,
+      "name": "Credit Card",
+      "account_type": "credit",
+      "balance": "-1250.75",
+      "currency": "USD",
+      "is_active": true,
+      "account_number": "****9876",
+      "institution": "Capital One",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.account",
+    "pk": 4,
+    "fields": {
+      "user": 2,
+      "name": "Business Checking",
+      "account_type": "checking",
+      "balance": "15000.00",
+      "currency": "USD",
+      "is_active": true,
+      "account_number": "****3456",
+      "institution": "Bank of America",
+      "created_at": "2024-01-02T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.category",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "name": "Food & Dining",
+      "category_type": "expense",
+      "parent": null,
+      "color": "#FF6B6B",
+      "icon": "utensils",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.category",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "name": "Restaurants",
+      "category_type": "expense",
+      "parent": 1,
+      "color": "#FF6B6B",
+      "icon": "restaurant",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.category",
+    "pk": 3,
+    "fields": {
+      "user": 1,
+      "name": "Groceries",
+      "category_type": "expense",
+      "parent": 1,
+      "color": "#FF6B6B",
+      "icon": "shopping-cart",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.category",
+    "pk": 4,
+    "fields": {
+      "user": 1,
+      "name": "Transportation",
+      "category_type": "expense",
+      "parent": null,
+      "color": "#4ECDC4",
+      "icon": "car",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.category",
+    "pk": 5,
+    "fields": {
+      "user": 1,
+      "name": "Salary",
+      "category_type": "income",
+      "parent": null,
+      "color": "#51CF66",
+      "icon": "dollar-sign",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.tag",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "name": "business",
+      "color": "#6B7280",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.tag",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "name": "urgent",
+      "color": "#EF4444",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.tag",
+    "pk": 3,
+    "fields": {
+      "user": 1,
+      "name": "recurring",
+      "color": "#3B82F6",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.transaction",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "transaction_category": "standard",
+      "transaction_type": "income",
+      "account": 1,
+      "transfer_account": null,
+      "category": 5,
+      "suggested_category": null,
+      "amount": "5000.00",
+      "description": "Monthly Salary",
+      "date": "2024-01-01",
+      "currency": "USD",
+      "notes": "Direct deposit from employer",
+      "external_id": null,
+      "status": "active",
+      "merchant_name": "TechCorp Inc",
+      "original_description": "PAYROLL DEPOSIT",
+      "verified": true,
+      "metadata": {},
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.transaction",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "transaction_category": "standard",
+      "transaction_type": "expense",
+      "account": 1,
+      "transfer_account": null,
+      "category": 2,
+      "suggested_category": null,
+      "amount": "85.50",
+      "description": "Dinner at Italian Restaurant",
+      "date": "2024-01-02",
+      "currency": "USD",
+      "notes": "Date night",
+      "external_id": null,
+      "status": "active",
+      "merchant_name": "Bella Vista Restaurant",
+      "original_description": "BELLA VISTA REST",
+      "verified": true,
+      "metadata": {},
+      "created_at": "2024-01-02T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.transaction",
+    "pk": 3,
+    "fields": {
+      "user": 1,
+      "transaction_category": "standard",
+      "transaction_type": "expense",
+      "account": 1,
+      "transfer_account": null,
+      "category": 3,
+      "suggested_category": null,
+      "amount": "127.85",
+      "description": "Weekly Grocery Shopping",
+      "date": "2024-01-03",
+      "currency": "USD",
+      "notes": "Organic produce and household items",
+      "external_id": null,
+      "status": "active",
+      "merchant_name": "Whole Foods Market",
+      "original_description": "WHOLE FOODS 1234",
+      "verified": true,
+      "metadata": {},
+      "created_at": "2024-01-03T00:00:00Z",
+      "updated_at": "2024-01-03T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.transaction",
+    "pk": 4,
+    "fields": {
+      "user": 1,
+      "transaction_category": "standard",
+      "transaction_type": "transfer",
+      "account": 1,
+      "transfer_account": 2,
+      "category": null,
+      "suggested_category": null,
+      "amount": "1000.00",
+      "description": "Transfer to Savings",
+      "date": "2024-01-05",
+      "currency": "USD",
+      "notes": "Monthly savings transfer",
+      "external_id": null,
+      "status": "active",
+      "merchant_name": null,
+      "original_description": "TRANSFER TO SAVINGS",
+      "verified": true,
+      "metadata": {},
+      "created_at": "2024-01-05T00:00:00Z",
+      "updated_at": "2024-01-05T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.transaction",
+    "pk": 5,
+    "fields": {
+      "user": 1,
+      "transaction_category": "recurring_template",
+      "transaction_type": "expense",
+      "account": 1,
+      "transfer_account": null,
+      "category": 4,
+      "suggested_category": null,
+      "amount": "45.00",
+      "description": "Gas Station Fill-up",
+      "date": "2024-01-10",
+      "currency": "USD",
+      "notes": "Weekly gas expense",
+      "external_id": null,
+      "status": "active",
+      "is_template": true,
+      "template_name": "Weekly Gas",
+      "frequency": "weekly",
+      "frequency_interval": 1,
+      "start_date": "2024-01-01",
+      "end_date": null,
+      "max_executions": null,
+      "next_execution_date": "2024-01-17",
+      "is_active_template": true,
+      "is_manual": false,
+      "auto_categorize": true,
+      "execution_conditions": {},
+      "merchant_name": "Shell Gas Station",
+      "original_description": "SHELL #1234",
+      "verified": true,
+      "metadata": {},
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-10T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.investment",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "investment_type": "stock",
+      "sector": "Technology",
+      "current_price": "185.25",
+      "currency": "USD",
+      "last_price_update": "2024-01-15T16:00:00Z",
+      "price_source": "manual",
+      "auto_update_price": false,
+      "portfolio_name": "Tech Portfolio",
+      "portfolio_weight": "15.50",
+      "description": "Leading technology company",
+      "risk_level": "moderate",
+      "dividend_yield": "0.44",
+      "market_cap": 2850000000000,
+      "pe_ratio": "28.45",
+      "beta": "1.25",
+      "fifty_two_week_high": "199.62",
+      "fifty_two_week_low": "164.08",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.investment",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "symbol": "TSLA",
+      "name": "Tesla, Inc.",
+      "investment_type": "stock",
+      "sector": "Automotive",
+      "current_price": "208.50",
+      "currency": "USD",
+      "last_price_update": "2024-01-15T16:00:00Z",
+      "price_source": "manual",
+      "auto_update_price": false,
+      "portfolio_name": "Growth Portfolio",
+      "portfolio_weight": "8.25",
+      "description": "Electric vehicle and clean energy company",
+      "risk_level": "high",
+      "dividend_yield": "0.00",
+      "market_cap": 660000000000,
+      "pe_ratio": "65.24",
+      "beta": "1.85",
+      "fifty_two_week_high": "299.29",
+      "fifty_two_week_low": "152.37",
+      "is_active": true,
+      "created_at": "2024-01-05T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.transaction",
+    "pk": 6,
+    "fields": {
+      "user": 1,
+      "transaction_category": "investment",
+      "transaction_type": "buy",
+      "account": 2,
+      "transfer_account": null,
+      "category": null,
+      "suggested_category": null,
+      "investment": 1,
+      "amount": "1852.50",
+      "description": "Buy AAPL shares",
+      "date": "2024-01-08",
+      "currency": "USD",
+      "notes": "Initial AAPL position",
+      "external_id": null,
+      "status": "active",
+      "quantity": "10.000000",
+      "price_per_unit": "185.25",
+      "fees": "2.50",
+      "merchant_name": "E*TRADE",
+      "original_description": "BUY AAPL 10 SHARES",
+      "verified": true,
+      "metadata": {"broker": "etrade"},
+      "created_at": "2024-01-08T00:00:00Z",
+      "updated_at": "2024-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.goal",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "name": "Emergency Fund",
+      "description": "Build 6 months of expenses as emergency fund",
+      "goal_type": "savings",
+      "target_amount": "15000.00",
+      "current_amount": "8500.00",
+      "target_date": "2024-12-31",
+      "status": "active",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.goal",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "name": "Vacation Fund",
+      "description": "Save for European vacation",
+      "goal_type": "savings",
+      "target_amount": "5000.00",
+      "current_amount": "1200.00",
+      "target_date": "2024-08-01",
+      "status": "active",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.invoice",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "invoice_type": "standard",
+      "invoice_number": "INV-2024-001",
+      "status": "sent",
+      "client_name": "ABC Corp",
+      "client_email": "billing@abccorp.com",
+      "client_address": "123 Business St, City, ST 12345",
+      "description": "Web development services",
+      "amount": "2500.00",
+      "tax_amount": "200.00",
+      "total_amount": "2700.00",
+      "currency": "USD",
+      "issue_date": "2024-01-10",
+      "due_date": "2024-02-10",
+      "paid_date": null,
+      "generated_by_ai": false,
+      "ai_confidence_score": null,
+      "pdf_file": "",
+      "created_at": "2024-01-10T00:00:00Z",
+      "updated_at": "2024-01-10T00:00:00Z"
+    }
+  }
+]

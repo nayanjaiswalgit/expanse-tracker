@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Read(//d/simple/frontend/src/api/**)",
+      "Bash(python manage.py:*)",
+      "Bash(pip install:*)",
+      "Bash(timeout 10 python manage.py runserver)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

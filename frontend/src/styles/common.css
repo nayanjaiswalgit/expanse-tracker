@@ -1,0 +1,99 @@
+.max-h-600px {
+  max-height: 600px;
+}
+
+/* Animation classes */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounceSoft {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-1px);
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out;
+}
+
+.animate-bounce-soft {
+  animation: bounceSoft 3s infinite;
+}
+
+/* Toast Notifications */
+.theme-notification {
+  @apply bg-white dark:bg-secondary-800 border border-gray-200 dark:border-secondary-700 rounded-lg shadow-md;
+}
+
+.theme-notification-success {
+  @apply bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700;
+}
+
+.theme-notification-error {
+  @apply bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700;
+}
+
+.theme-notification-warning {
+  @apply bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700;
+}
+
+.theme-notification-info {
+  @apply bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700;
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Financial Summary Report</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Financial Summary Report for {{ user.username }}</h1>
+    <p>Report Date: {{ report_date }}</p>
+
+    <h2>Summary</h2>
+    <table>
+        <tr>
+            <th>Total Income</th>
+            <th>Total Expenses</th>
+            <th>Net Amount</th>
+            <th>Transaction Count</th>
+        </tr>
+        <tr>
+            <td>{{ summary_data.total_income }}</td>
+            <td>{{ summary_data.total_expenses }}</td>
+            <td>{{ summary_data.net_amount }}</td>
+            <td>{{ summary_data.transaction_count }}</td>
+        </tr>
+    </table>
+
+    <h2>Account Balances</h2>
+    <table>
+        <tr>
+            <th>Account Name</th>
+            <th>Balance</th>
+            <th>Currency</th>
+        </tr>
+        {% for account in summary_data.account_balances %}
+        <tr>
+            <td>{{ account.account_name }}</td>
+            <td>{{ account.balance }}</td>
+            <td>{{ account.currency }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Category Breakdown (Expenses)</h2>
+    <table>
+        <tr>
+            <th>Category Name</th>
+            <th>Amount</th>
+            <th>Percentage</th>
+        </tr>
+        {% for category in summary_data.category_breakdown %}
+        <tr>
+            <td>{{ category.category_name }}</td>
+            <td>{{ category.amount }}</td>
+            <td>{{ category.percentage }}%</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Monthly Trend</h2>
+    <table>
+        <tr>
+            <th>Month</th>
+            <th>Income</th>
+            <th>Expenses</th>
+            <th>Net</th>
+        </tr>
+        {% for trend in summary_data.monthly_trend %}
+        <tr>
+            <td>{{ trend.month }}</td>
+            <td>{{ trend.income }}</td>
+            <td>{{ trend.expenses }}</td>
+            <td>{{ trend.net }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+</body>
+</html>
