@@ -6,27 +6,29 @@ import { createProfileFormConfig } from '../../features/settings/forms';
 import { AccountFormData } from '../../features/finance/schemas';
 import { LoginFormData } from '../../features/auth/schemas';
 import { ProfileFormData } from '../../features/settings/schemas';
+import { useToast } from '../ui/Toast';
 
 export const FormExample: React.FC = () => {
+  const { showSuccess } = useToast();
   const handleAccountSubmit = async (data: AccountFormData) => {
     console.log('Account Form Data:', data);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    alert('Account created successfully!');
+    showSuccess('Account created successfully!', '');
   };
 
   const handleLoginSubmit = async (data: LoginFormData) => {
     console.log('Login Form Data:', data);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    alert('Login successful!');
+    showSuccess('Login successful!', '');
   };
 
   const handleProfileSubmit = async (data: ProfileFormData) => {
     console.log('Profile Form Data:', data);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    alert('Profile updated successfully!');
+    showSuccess('Profile updated successfully!', '');
   };
 
   const accountConfig = createAccountFormConfig(handleAccountSubmit);

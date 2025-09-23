@@ -23,6 +23,8 @@ import { formatCurrency } from '../../utils/preferences';
 import { sanitizeInput } from '../../utils/security';
 import { apiClient } from 'src/api/client';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useToast } from '../../components/ui/Toast';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 
 const columnHelper = createColumnHelper<Transaction>();
 
@@ -90,6 +92,7 @@ export const TransactionTable = () => {
   const updateSplitsMutation = useUpdateTransactionSplits();
   const createTransactionMutation = useCreateTransaction();
   const { state: authState } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   // Helper to get transactions array from query data - memoized for performance
   const transactions = useMemo(() => {
@@ -116,6 +119,7 @@ export const TransactionTable = () => {
   }>({});
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
   const [selectedAddOption, setSelectedAddOption] = useState<'transaction' | 'scan' | 'upload'>('transaction');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // History tracking
   const [actionHistory, setActionHistory] = useState<Array<{
@@ -209,10 +213,10 @@ export const TransactionTable = () => {
         )
       );
 
-      alert(`Successfully reverted ${historyItem.count} transaction${historyItem.count !== 1 ? 's' : ''}`);
+      showSuccess('Action reverted', `Successfully reverted ${historyItem.count} transaction${historyItem.count !== 1 ? 's' : ''}`);
     } catch (error) {
       console.error('Failed to revert action:', error);
-      alert('Failed to revert action. Please try again.');
+      showError('Failed to revert action', 'Please try again.');
     }
   }, [deleteTransactionMutation]);
 
@@ -656,7 +660,7 @@ export const TransactionTable = () => {
         await updateSplitsMutation.mutateAsync({ id: Number(splitTransaction.id), splits });
       } catch (error) {
         console.error('Failed to update transaction splits:', error);
-        alert('Failed to update transaction splits. Please try again.');
+        showError('Failed to update transaction splits', 'Please try again.');
       }
     }
   };
@@ -692,7 +696,7 @@ export const TransactionTable = () => {
 
   const handleFileUpload = async (file: File) => {
     if (!selectedUploadAccount) {
-      alert('Please select an account before uploading.');
+      showError('No account selected', 'Please select an account before uploading.');
       return;
     }
 
@@ -705,7 +709,7 @@ export const TransactionTable = () => {
       // so we can't provide revert functionality for file uploads
       addToHistory('upload', `Uploaded file: ${file.name}`, result.total_transactions);
 
-      alert(`File uploaded successfully! ${result.total_transactions} transactions processed.`);
+      showSuccess('File uploaded successfully', `${result.total_transactions} transactions processed.`);
       // Refresh transactions to show new data
       // React Query handles refetching automatically
       setShowAddTransactionModal(false);
@@ -715,7 +719,7 @@ export const TransactionTable = () => {
         setShowPasswordPrompt({ file, filename: file.name });
       } else {
         console.error('Upload error:', error);
-        alert(`Upload failed: ${error.message}`);
+        showError('Upload failed', error.message);
       }
     }
   };
@@ -733,7 +737,7 @@ export const TransactionTable = () => {
       // Add to history
       addToHistory('upload', `Uploaded file: ${file.name} (password protected)`, result.total_transactions);
 
-      alert(`File uploaded successfully! ${result.total_transactions} transactions processed.`);
+      showSuccess('File uploaded successfully', `${result.total_transactions} transactions processed.`);
       // Refresh transactions to show new data
       // React Query handles refetching automatically
       setShowAddTransactionModal(false);
@@ -742,11 +746,11 @@ export const TransactionTable = () => {
       if (error.message === 'PASSWORD_REQUIRED') {
         // Still need password - show prompt again
         setShowPasswordPrompt({ file, filename: file.name });
-        alert('Incorrect password. Please try again.');
+        showError('Incorrect password', 'Please try again.');
       } else {
         // Other error
         console.error('Upload error:', error);
-        alert(`Upload failed: ${error.message}`);
+        showError('Upload failed', error.message);
       }
     }
   };
@@ -797,17 +801,8 @@ export const TransactionTable = () => {
 
     try {
       if (bulkEditData.action === 'delete') {
-        if (!confirm(`Are you sure you want to delete ${selectedRows.size} transaction${selectedRows.size !== 1 ? 's' : ''}? This action cannot be undone.`)) {
-          return;
-        }
-        
-        // Delete transactions
-        const deletePromises = Array.from(selectedRows).map(id => 
-          deleteTransactionMutation.mutateAsync(Number(id))
-        );
-        await Promise.all(deletePromises);
-        
-        alert(`Successfully deleted ${selectedRows.size} transaction${selectedRows.size !== 1 ? 's' : ''}.`);
+        setShowDeleteConfirm(true);
+        return;
       } else {
         const promises = [];
         
@@ -848,7 +843,7 @@ export const TransactionTable = () => {
 
         await Promise.all(promises);
         
-        alert(`Successfully updated ${selectedRows.size} transaction${selectedRows.size !== 1 ? 's' : ''}.`);
+        showSuccess('Transactions updated', `Successfully updated ${selectedRows.size} transaction${selectedRows.size !== 1 ? 's' : ''}.`);
       }
       
       // Clear selection and close bulk edit
@@ -857,13 +852,33 @@ export const TransactionTable = () => {
       setBulkEditData({});
     } catch (error) {
       console.error('Failed to bulk update transactions:', error);
-      alert('Failed to update transactions. Please try again.');
+      showError('Failed to update transactions', 'Please try again.');
     }
   };
 
   const handleBulkCancel = () => {
     setShowBulkEdit(false);
     setBulkEditData({});
+  };
+
+  const confirmDeleteTransactions = async () => {
+    try {
+      // Delete transactions
+      const deletePromises = Array.from(selectedRows).map(id =>
+        deleteTransactionMutation.mutateAsync(Number(id))
+      );
+      await Promise.all(deletePromises);
+
+      showSuccess('Transactions deleted', `Successfully deleted ${selectedRows.size} transaction${selectedRows.size !== 1 ? 's' : ''}.`);
+
+      setSelectedRows(new Set());
+      setShowBulkEdit(false);
+      setBulkEditData({});
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error('Failed to delete transactions:', error);
+      showError('Failed to delete transactions', 'Please try again.');
+    }
   };
 
   const handleAcceptSuggestion = async (transaction: Transaction) => {
@@ -873,7 +888,7 @@ export const TransactionTable = () => {
       // React Query handles refetching automatically
     } catch (error) {
       console.error('Failed to accept suggestion:', error);
-      alert('Failed to accept suggestion. Please try again.');
+      showError('Failed to accept suggestion', 'Please try again.');
     }
   };
 
@@ -884,13 +899,13 @@ export const TransactionTable = () => {
       // React Query handles refetching automatically
     } catch (error) {
       console.error('Failed to auto-categorize:', error);
-      alert('Failed to auto-categorize. Please try again.');
+      showError('Failed to auto-categorize', 'Please try again.');
     }
   };
 
   const handleAddTransactions = async () => {
     if (!transactionData.input.trim() || !transactionData.defaultAccountId) {
-      alert('Please enter transaction data and select an account');
+      showError('Missing information', 'Please enter transaction data and select an account');
       return;
     }
 
@@ -913,12 +928,12 @@ export const TransactionTable = () => {
           description = line.replace(amountMatch[0], '').trim();
         } else {
           description = line;
-          alert('Please include an amount in your transaction. Example: "Groceries -50" or "-50 Groceries"');
+          showError('Missing amount', 'Please include an amount in your transaction. Example: "Groceries -50" or "-50 Groceries"');
           return;
         }
 
         if (!description || amount === 0) {
-          alert('Please provide both description and amount. Example: "Groceries -50" or "-50 Groceries"');
+          showError('Incomplete transaction', 'Please provide both description and amount. Example: "Groceries -50" or "-50 Groceries"');
           return;
         }
 
@@ -936,7 +951,7 @@ export const TransactionTable = () => {
         });
 
         addToHistory('single', `Added "${description}"`, 1, [result.id]);
-        alert('Transaction created successfully!');
+        showSuccess('Transaction created successfully!', '');
       } else {
         // Handle as bulk transactions - use the existing bulk logic
         const transactions: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>[] = [];
@@ -1043,9 +1058,9 @@ export const TransactionTable = () => {
         }
 
         if (successCount > 0) {
-          alert(`Successfully created ${successCount} transactions${errorCount > 0 ? `. ${errorCount} failed to create.` : '!'}`);
+          showSuccess('Transactions created', `Successfully created ${successCount} transactions${errorCount > 0 ? `. ${errorCount} failed to create.` : '!'}`);
         } else {
-          alert('No transactions were created. Please check your format.');
+          showError('No transactions created', 'Please check your format.');
         }
       }
 
@@ -1063,7 +1078,7 @@ export const TransactionTable = () => {
 
     } catch (error) {
       console.error('Failed to create transactions:', error);
-      alert('Failed to create transactions. Please try again.');
+      showError('Failed to create transactions', 'Please try again.');
     }
   };
 
@@ -1881,6 +1896,16 @@ export const TransactionTable = () => {
           onCancel={handlePasswordCancel}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteTransactions}
+        title="Delete Transactions"
+      >
+        Are you sure you want to delete {selectedRows.size} transaction{selectedRows.size !== 1 ? 's' : ''}? This action cannot be undone.
+      </ConfirmationModal>
     </div>
   );
 };

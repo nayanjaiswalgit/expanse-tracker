@@ -19,6 +19,9 @@ class GoalViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Goal.objects.filter(user=self.request.user)
 
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
     @action(detail=True, methods=["post"])
     def update_progress(self, request, pk=None):
         """Update goal progress"""

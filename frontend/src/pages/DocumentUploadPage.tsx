@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useToast } from '../components/ui/Toast';
 
 const DocumentUploadPage: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([]);
 
@@ -16,9 +18,9 @@ const DocumentUploadPage: React.FC = () => {
       // For now, we'll just simulate an upload by adding the file name to the list.
       setUploadedDocuments([...uploadedDocuments, selectedFile.name]);
       setSelectedFile(null); // Clear the selected file after "upload"
-      alert(`File ${selectedFile.name} uploaded successfully! (Simulated)`);
+      showSuccess('File uploaded successfully', `${selectedFile.name} uploaded successfully! (Simulated)`);
     } else {
-      alert('Please select a file to upload.');
+      showError('No file selected', 'Please select a file to upload.');
     }
   };
 

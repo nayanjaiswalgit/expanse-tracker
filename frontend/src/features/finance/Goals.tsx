@@ -17,12 +17,14 @@ import {
 } from 'lucide-react';
 import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useUpdateGoalProgress, useToggleGoalStatus } from '../../hooks/finance';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../components/ui/Toast';
 import { formatCurrency } from '../../utils/preferences';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { ColorPickerButton } from '../../components/ui/ColorPickerButton';
 import { Select } from '../../components/ui/Select';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import type { Goal } from '../types';
 
 interface GoalFormData {
@@ -70,19 +72,21 @@ export const Goals = () => {
   const updateProgressMutation = useUpdateGoalProgress();
   const toggleStatusMutation = useToggleGoalStatus();
   const { state: authState } = useAuth();
+  const { showError } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [showAmounts, setShowAmounts] = useState(true);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
   const [progressAmount, setProgressAmount] = useState('');
+  const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>({
     name: '',
     description: '',
     goal_type: 'savings',
     target_amount: '1000.00',
     current_amount: '0.00',
-    currency: 'USD',
+    currency: 'INR',
     start_date: new Date().toISOString().split('T')[0],
     target_date: '',
     category: undefined,
@@ -179,22 +183,25 @@ export const Goals = () => {
       handleCloseModal();
     } catch (error) {
       console.error('Failed to save goal:', error);
-      alert('Failed to save goal. Please try again.');
+      showError('Failed to save goal', 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteGoal = async (goal: Goal) => {
-    if (!confirm(`Are you sure you want to delete "${goal.name}"? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteGoal = (goal: Goal) => {
+    setGoalToDelete(goal);
+  };
+
+  const confirmDeleteGoal = async () => {
+    if (!goalToDelete) return;
 
     try {
-      await deleteGoalMutation.mutateAsync(goal.id);
+      await deleteGoalMutation.mutateAsync(goalToDelete.id);
+      setGoalToDelete(null);
     } catch (error) {
       console.error('Failed to delete goal:', error);
-      alert('Failed to delete goal. Please try again.');
+      showError('Failed to delete goal', 'Please try again.');
     }
   };
 
@@ -208,7 +215,7 @@ export const Goals = () => {
       setProgressAmount('');
     } catch (error) {
       console.error('Failed to update goal progress:', error);
-      alert('Failed to update goal progress. Please try again.');
+      showError('Failed to update goal progress', 'Please try again.');
     }
   };
 
@@ -217,7 +224,7 @@ export const Goals = () => {
       await toggleStatusMutation.mutateAsync({ id: goal.id, status: newStatus });
     } catch (error) {
       console.error('Failed to toggle goal status:', error);
-      alert('Failed to update goal status. Please try again.');
+      showError('Failed to update goal status', 'Please try again.');
     }
   };
 
@@ -600,6 +607,7 @@ export const Goals = () => {
               value={formData.currency}
               onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
               options={[
+                { value: "INR", label: "INR - Indian Rupee" },
                 { value: "USD", label: "USD - US Dollar" },
                 { value: "EUR", label: "EUR - Euro" },
                 { value: "GBP", label: "GBP - British Pound" },
@@ -755,6 +763,16 @@ export const Goals = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!goalToDelete}
+        onClose={() => setGoalToDelete(null)}
+        onConfirm={confirmDeleteGoal}
+        title="Delete Goal"
+      >
+        Are you sure you want to delete "{goalToDelete?.name}"? This action cannot be undone.
+      </ConfirmationModal>
     </div>
   );
 };

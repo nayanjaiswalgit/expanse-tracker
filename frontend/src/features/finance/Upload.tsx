@@ -7,6 +7,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { useToast } from '../../components/ui/Toast';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 
 interface UploadedFile {
   id: string;
@@ -76,6 +78,7 @@ const PasswordPrompt = ({ filename, onSubmit, onCancel }: PasswordPromptProps) =
 
 export const Upload = () => {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState<{file: File, fileId: string} | null>(null);
@@ -85,6 +88,7 @@ export const Upload = () => {
   const [newAccountId, setNewAccountId] = useState<number | null>(null);
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [editingFileName, setEditingFileName] = useState('');
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
   const loadUploadSessions = useCallback(async () => {
     try {
@@ -262,14 +266,16 @@ export const Upload = () => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
-  const handleDeleteFile = useCallback(async (fileId: string) => {
-    if (!confirm('Are you sure you want to delete this file and its associated transactions?')) {
-      return;
-    }
+  const handleDeleteFile = useCallback((fileId: string) => {
+    setFileToDelete(fileId);
+  }, []);
+
+  const confirmDeleteFile = useCallback(async () => {
+    if (!fileToDelete) return;
 
     try {
       // Find the file
-      const file = files.find(f => f.id === fileId);
+      const file = files.find(f => f.id === fileToDelete);
       if (!file) return;
 
       // If it has a session_id, delete from server
@@ -278,12 +284,13 @@ export const Upload = () => {
       }
 
       // Remove from local state
-      setFiles(prev => prev.filter(f => f.id !== fileId));
+      setFiles(prev => prev.filter(f => f.id !== fileToDelete));
+      setFileToDelete(null);
     } catch (error) {
       console.error('Failed to delete file:', error);
-      alert('Failed to delete file. Please try again.');
+      showError('Failed to delete file', 'Please try again.');
     }
-  }, [files]);
+  }, [fileToDelete, files, showError]);
 
   const handleAccountChange = useCallback(async () => {
     if (!showAccountChangeModal || !newAccountId) return;
@@ -298,7 +305,7 @@ export const Upload = () => {
         const transactionIds = transactions.results.map((t: any) => Number(t.id));
         const result = await apiClient.bulkUpdateTransactionAccount(transactionIds, newAccountId) as any;
         
-        alert(`Successfully updated ${result.updated_count} transactions to account: ${result.account_name}`);
+        showSuccess('Account updated', `Successfully updated ${result.updated_count} transactions to account: ${result.account_name}`);
         
         // Refresh upload sessions to show updated account info
         await loadUploadSessions();
@@ -308,7 +315,7 @@ export const Upload = () => {
       setNewAccountId(null);
     } catch (error: any) {
       console.error('Failed to change account:', error);
-      alert(`Failed to change account: ${error.response?.data?.error || error.message}`);
+      showError('Failed to change account', error.response?.data?.error || error.message);
     }
   }, [showAccountChangeModal, newAccountId, loadUploadSessions]);
 
@@ -339,7 +346,7 @@ export const Upload = () => {
       cancelEditing();
     } catch (error: any) {
       console.error('Failed to rename file:', error);
-      alert(`Failed to rename file: ${error.response?.data?.error || error.message}`);
+      showError('Failed to rename file', error.response?.data?.error || error.message);
     }
   }, [editingFileName, cancelEditing]);
 
@@ -348,7 +355,7 @@ export const Upload = () => {
     setIsDragging(false);
 
     if (!selectedAccountId) {
-      alert('Please select an account before uploading files.');
+      showError('No account selected', 'Please select an account before uploading files.');
       return;
     }
 
@@ -362,7 +369,7 @@ export const Upload = () => {
     );
     
     if (supportedFiles.length === 0) {
-      alert('Please upload PDF, JSON, or CSV files only.');
+      showError('Invalid file type', 'Please upload PDF, JSON, or CSV files only.');
       return;
     }
 
@@ -401,7 +408,7 @@ export const Upload = () => {
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedAccountId) {
-      alert('Please select an account before uploading files.');
+      showError('No account selected', 'Please select an account before uploading files.');
       e.target.value = '';
       return;
     }
@@ -416,7 +423,7 @@ export const Upload = () => {
     );
     
     if (supportedFiles.length === 0) {
-      alert('Please upload PDF, JSON, or CSV files only.');
+      showError('Invalid file type', 'Please upload PDF, JSON, or CSV files only.');
       e.target.value = '';
       return;
     }
@@ -773,6 +780,16 @@ export const Upload = () => {
           onCancel={handlePasswordCancel}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!fileToDelete}
+        onClose={() => setFileToDelete(null)}
+        onConfirm={confirmDeleteFile}
+        title="Delete File"
+      >
+        Are you sure you want to delete this file and its associated transactions? This action cannot be undone.
+      </ConfirmationModal>
     </div>
   );
 };
