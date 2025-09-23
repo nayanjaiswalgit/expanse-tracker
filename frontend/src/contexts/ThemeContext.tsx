@@ -14,9 +14,22 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Check localStorage first, then default to system
+    // Check localStorage first, then user preference, then default to system
     const saved = localStorage.getItem('theme') as Theme;
-    return saved || 'system';
+    if (saved) return saved;
+
+    // Check if user has a theme preference
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        if (user?.theme) return user.theme;
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+
+    return 'system';
   });
 
   const [actualTheme, setActualTheme] = useState<'light' | 'dark'>(() => {

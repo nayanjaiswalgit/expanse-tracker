@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../components/ui/Toast';
 import { apiClient } from '../../api/client';
 import { useObjectForm } from '../../hooks/useObjectForm';
@@ -9,11 +10,14 @@ import { createPreferencesFormConfig } from './forms';
 import { PreferencesFormData } from './schemas/forms';
 import { Globe, Bell, Palette, Clock, DollarSign, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useCurrency } from '../finance/hooks/queries/useCurrency';
 
 const PreferencesSettings: React.FC = () => {
   const { state: authState, updateUser } = useAuth();
+  const { setTheme } = useTheme();
   const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { currencies } = useCurrency();
 
   const handlePreferencesUpdate = async (data: PreferencesFormData) => {
     setIsLoading(true);
@@ -22,6 +26,12 @@ const PreferencesSettings: React.FC = () => {
       console.log('Updating preferences with data:', data);
       const updatedUser = await apiClient.updateUserPreferences(data);
       updateUser(updatedUser);
+
+      // Update theme context if theme was changed
+      if (data.theme) {
+        setTheme(data.theme);
+      }
+
       showSuccess('Preferences Updated', 'Your preferences have been saved successfully.');
     } catch (error) {
       console.error('Preferences update failed:', error);
@@ -44,7 +54,8 @@ const PreferencesSettings: React.FC = () => {
       notifications_enabled: authState.user?.notifications_enabled ?? true,
       email_notifications: authState.user?.email_notifications ?? true,
       push_notifications: authState.user?.push_notifications ?? false,
-    }
+    },
+    currencies
   );
 
   const { form, submit, isFieldVisible } = useObjectForm(formConfig);
@@ -68,6 +79,7 @@ const PreferencesSettings: React.FC = () => {
   };
 
   const fieldsBySection = getFieldsBySection();
+
 
   return (
     <div className="max-w-4xl mx-auto">

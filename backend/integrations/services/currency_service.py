@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
+from ..constants import SUPPORTED_CURRENCIES
 
 
 class CurrencyService:
@@ -237,22 +238,11 @@ class CurrencyService:
 
     def _get_mock_all_rates(self, base_currency: str) -> Dict[str, Decimal]:
         """Generate mock rates for all currencies"""
-        currencies = [
-            "USD",
-            "EUR",
-            "GBP",
-            "JPY",
-            "CAD",
-            "AUD",
-            "CHF",
-            "CNY",
-            "INR",
-            "BRL",
-        ]
+        currency_codes = [currency['code'] for currency in SUPPORTED_CURRENCIES]
         rates = {}
 
-        for currency in currencies:
-            if currency != base_currency:
-                rates[currency] = self._get_mock_rate(base_currency, currency)
+        for currency_code in currency_codes:
+            if currency_code != base_currency:
+                rates[currency_code] = self._get_mock_rate(base_currency, currency_code)
 
         return rates

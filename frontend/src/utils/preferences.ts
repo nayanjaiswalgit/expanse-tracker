@@ -1,33 +1,35 @@
 import type { User } from '../types';
 
-export const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  JPY: '¥',
-  CAD: 'C$',
-  AUD: 'A$',
-  CHF: 'CHF',
-  CNY: '¥',
-  INR: '₹',
+// This will be populated by currency data from the backend
+let DYNAMIC_CURRENCY_SYMBOLS: Record<string, string> = {};
+
+export const setCurrencySymbols = (currencyData: Array<{ code: string; symbol: string }>) => {
+  DYNAMIC_CURRENCY_SYMBOLS = currencyData.reduce((acc, currency) => {
+    acc[currency.code] = currency.symbol;
+    return acc;
+  }, {} as Record<string, string>);
+};
+
+export const getCurrencySymbol = (currencyCode: string): string => {
+  return DYNAMIC_CURRENCY_SYMBOLS[currencyCode] || currencyCode;
 };
 
 export const formatCurrency = (amount: number, user?: User | null): string => {
   const currency = user?.preferred_currency || 'USD';
-  const symbol = CURRENCY_SYMBOLS[currency] || '$';
-  
+  const symbol = getCurrencySymbol(currency);
+
   // Format number with appropriate decimal places
   const formatted = Math.abs(amount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  
+
   return `${symbol}${formatted}`;
 };
 
 export const formatDate = (dateString: string, user?: User | null): string => {
   const date = new Date(dateString);
-  const format = user?.preferred_date_format || 'MM/DD/YYYY';
+  const format = user?.preferred_date_format || 'DD/MM/YYYY';
   
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -46,7 +48,7 @@ export const formatDate = (dateString: string, user?: User | null): string => {
 
 export const formatDateShort = (dateString: string, user?: User | null): string => {
   const date = new Date(dateString);
-  const format = user?.preferred_date_format || 'MM/DD/YYYY';
+  const format = user?.preferred_date_format || 'DD/MM/YYYY';
   
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -73,9 +75,9 @@ export const getDateInputFormat = (dateString: string): string => {
 };
 
 export const getDefaultDateFormat = (user?: User | null): string => {
-  return user?.preferred_date_format || 'MM/DD/YYYY';
+  return user?.preferred_date_format || 'DD/MM/YYYY';
 };
 
 export const getDefaultCurrency = (user?: User | null): string => {
-  return user?.preferred_currency || 'USD';
+  return user?.preferred_currency || 'INR';
 };

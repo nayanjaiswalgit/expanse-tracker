@@ -19,10 +19,107 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(write_only=True, required=False)
+
+    # Profile fields
+    phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    bio = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    website = serializers.URLField(write_only=True, required=False, allow_blank=True)
+    location = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    # Preference fields
+    preferred_currency = serializers.CharField(write_only=True, required=False)
+    preferred_date_format = serializers.CharField(write_only=True, required=False)
+    default_currency = serializers.CharField(write_only=True, required=False)
+    timezone = serializers.CharField(write_only=True, required=False)
+    language = serializers.CharField(write_only=True, required=False)
+    theme = serializers.CharField(write_only=True, required=False)
+
+    # Notification fields
+    notifications_enabled = serializers.BooleanField(write_only=True, required=False)
+    email_notifications = serializers.BooleanField(write_only=True, required=False)
+    push_notifications = serializers.BooleanField(write_only=True, required=False)
+
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "date_joined"]
+        fields = [
+            "id", "username", "email", "first_name", "last_name", "date_joined", "full_name",
+            "phone", "bio", "website", "location", "preferred_currency", "preferred_date_format",
+            "default_currency", "timezone", "language", "theme", "notifications_enabled",
+            "email_notifications", "push_notifications"
+        ]
         read_only_fields = ["id", "date_joined"]
+
+    def update(self, instance, validated_data):
+        # Handle full_name field if provided
+        full_name = validated_data.pop('full_name', None)
+        if full_name:
+            name_parts = full_name.split(' ', 1)
+            validated_data['first_name'] = name_parts[0]
+            validated_data['last_name'] = name_parts[1] if len(name_parts) > 1 else ''
+
+        # Extract profile fields
+        profile_fields = {
+            'phone': validated_data.pop('phone', None),
+            'bio': validated_data.pop('bio', None),
+            'website': validated_data.pop('website', None),
+            'location': validated_data.pop('location', None),
+            'preferred_currency': validated_data.pop('preferred_currency', None),
+            'preferred_date_format': validated_data.pop('preferred_date_format', None),
+            'default_currency': validated_data.pop('default_currency', None),
+            'timezone': validated_data.pop('timezone', None),
+            'language': validated_data.pop('language', None),
+            'theme': validated_data.pop('theme', None),
+            'notifications_enabled': validated_data.pop('notifications_enabled', None),
+            'email_notifications': validated_data.pop('email_notifications', None),
+            'push_notifications': validated_data.pop('push_notifications', None),
+        }
+
+        # Update User model fields
+        user = super().update(instance, validated_data)
+
+        # Update UserProfile fields if they were provided
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        profile_updated = False
+
+        for field, value in profile_fields.items():
+            if value is not None:
+                setattr(profile, field, value)
+                profile_updated = True
+
+        if profile_updated:
+            profile.save()
+
+        return user
+
+    def to_representation(self, instance):
+        # Include full_name and profile fields in the response
+        data = super().to_representation(instance)
+        data['full_name'] = f"{instance.first_name} {instance.last_name}".strip()
+
+        # Include profile data if available
+        if hasattr(instance, 'profile'):
+            profile = instance.profile
+            data.update({
+                'phone': profile.phone,
+                'bio': profile.bio,
+                'website': profile.website,
+                'location': profile.location,
+                'preferred_currency': profile.preferred_currency,
+                'preferred_date_format': profile.preferred_date_format,
+                'default_currency': profile.default_currency,
+                'timezone': profile.timezone,
+                'language': profile.language,
+                'theme': profile.theme,
+                'notifications_enabled': profile.notifications_enabled,
+                'email_notifications': profile.email_notifications,
+                'push_notifications': profile.push_notifications,
+                'profile_photo_url': profile.profile_photo_url,
+                'profile_photo_thumbnail_url': profile.profile_photo_thumbnail_url,
+                'has_custom_photo': bool(profile.profile_photo),
+            })
+
+        return data
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -84,6 +181,33 @@ class UserProfileSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["has_openai_key"] = bool(instance.openai_api_key)
         return data
+
+
+class ProfilePhotoSerializer(serializers.ModelSerializer):
+    """Serializer for profile photo upload"""
+
+    profile_photo = serializers.ImageField(write_only=True)
+    profile_photo_url = serializers.SerializerMethodField(read_only=True)
+    profile_photo_thumbnail_url = serializers.SerializerMethodField(read_only=True)
+    has_custom_photo = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            'profile_photo',
+            'profile_photo_url',
+            'profile_photo_thumbnail_url',
+            'has_custom_photo'
+        ]
+
+    def get_profile_photo_url(self, obj):
+        return obj.profile_photo_url
+
+    def get_profile_photo_thumbnail_url(self, obj):
+        return obj.profile_photo_thumbnail_url
+
+    def get_has_custom_photo(self, obj):
+        return bool(obj.profile_photo)
 
 
 class OnboardingSerializer(serializers.ModelSerializer):

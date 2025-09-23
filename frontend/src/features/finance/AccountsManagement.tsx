@@ -568,9 +568,10 @@ export const AccountsManagement = () => {
               description: editingAccount.description || '',
               is_active: editingAccount.is_active !== false,
             } : {
-              currency: getDefaultCurrency(),
+              currency: currencies[0]?.code || 'USD',
             },
-            !!editingAccount
+            !!editingAccount,
+            currencies
           )}
         />
       </Modal>

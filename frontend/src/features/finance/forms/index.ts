@@ -11,12 +11,14 @@ import {
   transactionSettingsSchema,
   TransactionSettingsFormData
 } from '../schemas';
+import type { Currency } from '../../../api/client';
 
 export const createAccountFormConfig = (
   onSubmit: (data: AccountFormData) => Promise<void>,
   isLoading?: boolean,
   initialData?: Partial<AccountFormData>,
-  isEdit = false
+  isEdit = false,
+  currencies: Currency[] = []
 ): FormConfig<AccountFormData> => {
   const accountTypeOptions = [
     { value: 'checking', label: 'Checking Account' },
@@ -63,17 +65,10 @@ export const createAccountFormConfig = (
         name: 'currency',
         type: 'select',
         label: 'Currency',
-        options: [
-          { value: 'USD', label: 'USD - US Dollar' },
-          { value: 'EUR', label: 'EUR - Euro' },
-          { value: 'GBP', label: 'GBP - British Pound' },
-          { value: 'JPY', label: 'JPY - Japanese Yen' },
-          { value: 'CAD', label: 'CAD - Canadian Dollar' },
-          { value: 'AUD', label: 'AUD - Australian Dollar' },
-          { value: 'CHF', label: 'CHF - Swiss Franc' },
-          { value: 'CNY', label: 'CNY - Chinese Yuan' },
-          { value: 'INR', label: 'INR - Indian Rupee' },
-        ],
+        options: currencies.map(currency => ({
+          value: currency.code,
+          label: `${currency.symbol} ${currency.code} - ${currency.name}`
+        })),
         validation: { required: true },
       },
       {
@@ -119,7 +114,7 @@ export const createAccountFormConfig = (
       name: '',
       account_type: 'checking',
       balance: '0.00',
-      currency: 'USD',
+      currency: currencies[0]?.code || 'USD',
       institution: '',
       account_number_last4: '',
       tags: [],
@@ -180,35 +175,52 @@ export const createAccountManagementFormConfig = (
   onSubmit: (data: AccountManagementFormData) => Promise<void>,
   isLoading?: boolean,
   initialData?: Partial<AccountManagementFormData>,
-  isEdit = false
+  isEdit = false,
+  currencies: Currency[] = []
 ): FormConfig<AccountManagementFormData> => ({
   schema: accountManagementSchema,
-  title: isEdit ? 'Edit Account' : 'Add New Account',
+  title: '', // Remove duplicate title since modal already has one
   description: isEdit
     ? 'Update your account details below.'
-    : 'Add a new financial account to track your transactions.',
+    : 'Add a new financial account to track your transactions and manage your money.',
   fields: [
     {
       name: 'name',
       type: 'input',
       label: 'Account Name',
-      placeholder: 'e.g., Main Checking, Savings Account',
+      placeholder: 'e.g., Main Checking, Emergency Savings',
       validation: { required: true },
-      description: 'Give your account a descriptive name',
+      description: 'Choose a descriptive name for easy identification',
+      className: 'col-span-full',
     },
     {
       name: 'account_type',
       type: 'select',
       label: 'Account Type',
       options: [
-        { value: 'checking', label: 'Checking Account' },
-        { value: 'savings', label: 'Savings Account' },
-        { value: 'credit', label: 'Credit Card' },
-        { value: 'investment', label: 'Investment Account' },
-        { value: 'loan', label: 'Loan Account' },
-        { value: 'other', label: 'Other' },
+        { value: 'checking', label: '🏦 Checking Account' },
+        { value: 'savings', label: '🐷 Savings Account' },
+        { value: 'credit', label: '💳 Credit Card' },
+        { value: 'investment', label: '📈 Investment Account' },
+        { value: 'loan', label: '🏠 Loan Account' },
+        { value: 'cash', label: '💵 Cash' },
+        { value: 'other', label: '📁 Other' },
       ],
       validation: { required: true },
+      description: 'Select the type that best describes this account',
+      className: 'md:col-span-1',
+    },
+    {
+      name: 'currency',
+      type: 'select',
+      label: 'Currency',
+      options: currencies.map(currency => ({
+        value: currency.code,
+        label: `${currency.symbol} ${currency.code} - ${currency.name}`
+      })),
+      validation: { required: true },
+      description: 'Choose your account currency',
+      className: 'md:col-span-1',
     },
     {
       name: 'balance',
@@ -217,49 +229,39 @@ export const createAccountManagementFormConfig = (
       placeholder: '0.00',
       validation: { required: true },
       description: 'Enter the current balance of this account',
-    },
-    {
-      name: 'currency',
-      type: 'select',
-      label: 'Currency',
-      options: [
-        { value: 'USD', label: 'USD - US Dollar' },
-        { value: 'EUR', label: 'EUR - Euro' },
-        { value: 'GBP', label: 'GBP - British Pound' },
-        { value: 'JPY', label: 'JPY - Japanese Yen' },
-        { value: 'CAD', label: 'CAD - Canadian Dollar' },
-        { value: 'AUD', label: 'AUD - Australian Dollar' },
-      ],
-      validation: { required: true },
+      className: 'md:col-span-1',
     },
     {
       name: 'institution',
       type: 'input',
-      label: 'Institution',
-      placeholder: 'e.g., Chase Bank, Wells Fargo',
-      description: 'The financial institution (optional)',
+      label: 'Financial Institution',
+      placeholder: 'e.g., State Bank of India, HDFC Bank, Chase Bank',
+      description: 'The bank or institution where this account is held (optional)',
+      className: 'md:col-span-1',
     },
     {
       name: 'description',
       type: 'textarea',
-      label: 'Description',
-      placeholder: 'Add any additional notes about this account...',
+      label: 'Description & Notes',
+      placeholder: 'Add any additional notes or details about this account...',
       rows: 3,
-      description: 'Optional description or notes',
+      description: 'Optional description, account purpose, or special notes',
       className: 'col-span-full',
     },
     {
       name: 'is_active',
       type: 'checkbox',
-      label: 'Account is active',
-      description: 'Uncheck to mark this account as inactive',
+      label: 'Account is active and in use',
+      description: 'Uncheck to mark this account as inactive or closed',
+      className: 'col-span-full',
     },
   ],
   layout: 'grid',
   submission: {
     onSubmit,
-    submitText: isEdit ? 'Update Account' : 'Add Account',
+    submitText: isEdit ? '💾 Update Account' : '✨ Create Account',
     loading: isLoading,
+    className: 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium px-8 py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105',
   },
   validation: {
     mode: 'onBlur',
@@ -269,7 +271,7 @@ export const createAccountManagementFormConfig = (
     name: '',
     account_type: 'checking',
     balance: 0,
-    currency: 'USD',
+    currency: currencies.length > 0 ? currencies[0].code : 'INR',
     institution: '',
     description: '',
     is_active: true,

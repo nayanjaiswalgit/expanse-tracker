@@ -10,6 +10,7 @@ import {
   SecurityFormData,
   NotificationFormData
 } from '../schemas';
+import type { Currency } from '../../../api/client';
 
 export const createProfileFormConfig = (
   onSubmit: (data: ProfileFormData) => Promise<void>,
@@ -34,8 +35,9 @@ export const createProfileFormConfig = (
       label: 'Email Address',
       placeholder: 'Enter your email address',
       validation: { required: true },
-      description: 'This email will be used for account notifications and login',
+      description: 'This email cannot be changed for security reasons',
       className: 'col-span-full',
+      disabled: true,
     },
     {
       name: 'phone',
@@ -96,7 +98,8 @@ export const createProfileFormConfig = (
 export const createPreferencesFormConfig = (
   onSubmit: (data: PreferencesFormData) => Promise<void>,
   isLoading?: boolean,
-  initialData?: Partial<PreferencesFormData>
+  initialData?: Partial<PreferencesFormData>,
+  currencies: Currency[] = []
 ): FormConfig<PreferencesFormData> => ({
   schema: preferencesSchema,
   title: '', // Remove duplicate title - already shown in component
@@ -107,16 +110,10 @@ export const createPreferencesFormConfig = (
       name: 'preferred_currency',
       type: 'select',
       label: 'Default Currency',
-      options: [
-        { value: 'USD', label: 'USD - US Dollar' },
-        { value: 'EUR', label: 'EUR - Euro' },
-        { value: 'GBP', label: 'GBP - British Pound' },
-        { value: 'JPY', label: 'JPY - Japanese Yen' },
-        { value: 'CAD', label: 'CAD - Canadian Dollar' },
-        { value: 'AUD', label: 'AUD - Australian Dollar' },
-        { value: 'CHF', label: 'CHF - Swiss Franc' },
-        { value: 'CNY', label: 'CNY - Chinese Yuan' },
-      ],
+      options: currencies.map(currency => ({
+        value: currency.code,
+        label: `${currency.symbol} ${currency.code} - ${currency.name}`
+      })),
       validation: { required: true },
       description: 'Primary currency for displaying amounts',
       className: 'md:col-span-1',
@@ -139,6 +136,7 @@ export const createPreferencesFormConfig = (
       type: 'select',
       label: 'Timezone',
       options: [
+        { value: 'Asia/Kolkata', label: 'India Standard Time (UTC+5:30)' },
         { value: 'America/New_York', label: 'Eastern Time (UTC-5)' },
         { value: 'America/Chicago', label: 'Central Time (UTC-6)' },
         { value: 'America/Denver', label: 'Mountain Time (UTC-7)' },
@@ -224,9 +222,9 @@ export const createPreferencesFormConfig = (
     className: 'bg-blue-600 hover:bg-blue-700 text-white font-medium px-8 py-3 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl',
   },
   defaultValues: {
-    preferred_currency: 'USD',
-    preferred_date_format: 'YYYY-MM-DD',
-    timezone: 'America/New_York',
+    preferred_currency: currencies[0]?.code || 'USD',
+    preferred_date_format: 'DD/MM/YYYY',
+    timezone: 'Asia/Kolkata',
     language: 'en',
     theme: 'system',
     notifications_enabled: true,

@@ -8,11 +8,10 @@ import {
   PieChart as PieChartIcon, BarChart3, RefreshCw, ArrowRight, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTransactions, useTransactionSummary, useCreateTransaction, useCategories, useAccounts, useGoals, useExportTransactions } from '../finance/hooks/queries';
+import { useTransactions, useTransactionSummary, useCategories, useAccounts, useGoals, useExportTransactions } from '../finance/hooks/queries';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../utils/preferences';
 import { useToast } from '../../components/ui/Toast';
-import { FormModal } from '../../components/ui/FormModal';
 import { LoadingSpinner } from '../../components/layout/LoadingSpinner';
 import { Select } from '../../components/ui/Select';
 import { ColoredCircle } from '../../components/common/ColoredCircle';
@@ -49,34 +48,14 @@ export const Dashboard: React.FC = () => {
   const categoriesQuery = useCategories();
   const accountsQuery = useAccounts();
   const goalsQuery = useGoals();
-  const createTransactionMutation = useCreateTransaction();
   const exportTransactionsMutation = useExportTransactions();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
   
   const [selectedTimeRange, setSelectedTimeRange] = useState('30');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>('bar');
-  const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [activeView, setActiveView] = useState<'overview' | 'analytics'>('overview');
   
-  const [newTransaction, setNewTransaction] = useState({
-    description: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    accountId: '',
-    categoryId: '',
-    notes: '',
-    transactionType: 'personal',
-    groupData: {
-      groupName: '',
-      participants: []
-    },
-    lendingData: {
-      contactName: '',
-      contactEmail: '',
-      dueDate: ''
-    }
-  });
   
   const [filters] = useState<Filter>({
     accounts: [],
@@ -305,39 +284,6 @@ export const Dashboard: React.FC = () => {
 
   const goals = (goalsQuery.data || []).slice(0, 3);
 
-  const handleAddTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTransaction.description || !newTransaction.amount || !newTransaction.accountId) return;
-
-    try {
-      await createTransactionMutation.mutateAsync({
-        description: newTransaction.description,
-        amount: newTransaction.amount,
-        date: newTransaction.date,
-        account_id: parseInt(newTransaction.accountId),
-        category_id: newTransaction.categoryId || undefined,
-        transaction_type: parseFloat(newTransaction.amount) >= 0 ? 'income' : 'expense',
-        verified: false,
-        tags: [],
-        notes: newTransaction.notes || ''
-      });
-      setShowAddTransaction(false);
-      setNewTransaction({
-        description: '',
-        amount: '',
-        date: new Date().toISOString().split('T')[0],
-        accountId: '',
-        categoryId: '',
-        notes: '',
-        transactionType: 'personal',
-        groupData: { groupName: '', participants: [] },
-        lendingData: { contactName: '', contactEmail: '', dueDate: '' }
-      });
-      showSuccess('Transaction added successfully!');
-    } catch {
-      showError('Failed to add transaction');
-    }
-  };
 
   const handleExportReport = async (format: 'csv' | 'json' | 'excel' | 'pdf') => {
     try {
@@ -493,11 +439,11 @@ export const Dashboard: React.FC = () => {
           )}
           
           <Button
-            onClick={() => setShowAddTransaction(true)}
+            onClick={() => navigate('/transactions')}
             size="sm"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Transaction
+            View Transactions
           </Button>
           
           <Button
@@ -975,112 +921,6 @@ export const Dashboard: React.FC = () => {
         </>
       )}
 
-      {/* Add Transaction Modal */}
-      <FormModal
-        isOpen={showAddTransaction}
-        onClose={() => setShowAddTransaction(false)}
-        title="Add New Transaction"
-        size="lg"
-      >
-        <form onSubmit={handleAddTransaction} className="space-y-4">
-          <div>
-            <label className="form-label">Description *</label>
-            <input
-              type="text"
-              value={newTransaction.description}
-              onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-              placeholder="Enter transaction description"
-              className="form-input"
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="form-label">Amount *</label>
-              <input
-                type="number"
-                step="0.01"
-                value={newTransaction.amount}
-                onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                placeholder="0.00"
-                className="form-input"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="form-label mb-1">Date *</label>
-              <input
-                type="date"
-                value={newTransaction.date}
-                onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
-                className="form-input"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="form-label mb-1">Account *</label>
-              <select
-                value={newTransaction.accountId}
-                onChange={(e) => setNewTransaction({ ...newTransaction, accountId: e.target.value })}
-                className="form-input"
-                required
-              >
-                <option value="">Select Account</option>
-                {accountsQuery.data || [].map(account => (
-                  <option key={account.id} value={account.id}>{account.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="form-label mb-1">Category</label>
-              <select
-                value={newTransaction.categoryId}
-                onChange={(e) => setNewTransaction({ ...newTransaction, categoryId: e.target.value })}
-                className="form-input"
-              >
-                <option value="">Select Category</option>
-                {categoriesQuery.data || [].map(category => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <label className="form-label mb-1">Notes</label>
-            <textarea
-              value={newTransaction.notes}
-              onChange={(e) => setNewTransaction({ ...newTransaction, notes: e.target.value })}
-              placeholder="Optional notes"
-              rows={3}
-              className="form-input"
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              onClick={() => setShowAddTransaction(false)}
-              size="sm"
-              variant="secondary"
-            >
-              Cancel
-            </Button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-            >
-              Add Transaction
-            </button>
-          </div>
-        </form>
-      </FormModal>
 
     </div>
   );

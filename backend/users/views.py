@@ -29,12 +29,14 @@ from allauth.socialaccount.models import SocialAccount
 import finance.models as fmodels
 from users.serializers_auth import EmailTokenObtainPairSerializer
 from users.models import Plan, UserPlanAssignment, UserAddon, ActivityLog, UserProfile
+from users.image_utils import ProfilePhotoProcessor, cleanup_old_profile_photos
 from finance.models import GroupExpenseShare
 from users.serializers import (
     UserSerializer,
     UserPlanAssignmentSerializer,
     ActivityLogSerializer,
     OnboardingSerializer,
+    ProfilePhotoSerializer,
 )
 from finance.serializers import (
     AccountSerializer,
@@ -251,6 +253,103 @@ class UserViewSet(viewsets.ModelViewSet):
             })
 
         return Response(results)
+
+    @action(detail=False, methods=["post"])
+    def upload_profile_photo(self, request):
+        """Upload and process profile photo"""
+        try:
+            profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+            if 'profile_photo' not in request.FILES:
+                return Response(
+                    {"error": "No profile photo file provided"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            image_file = request.FILES['profile_photo']
+
+            # Validate image file first
+            validation_errors = ProfilePhotoProcessor.validate_image_file(image_file)
+            if validation_errors:
+                return Response(
+                    {"errors": validation_errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Clean up old photos
+            cleanup_old_profile_photos(profile)
+
+            # Process image
+            main_file, thumbnail_file, processing_errors = ProfilePhotoProcessor.process_profile_photo(
+                image_file,
+                filename_prefix=f"user_{request.user.id}"
+            )
+
+            if processing_errors:
+                return Response(
+                    {"errors": processing_errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Save processed images to profile
+            profile.profile_photo.save(main_file.name, main_file, save=False)
+            profile.profile_photo_thumbnail.save(thumbnail_file.name, thumbnail_file, save=False)
+            profile.save()
+
+            # Return updated profile photo info
+            serializer = ProfilePhotoSerializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Error uploading profile photo")
+            return Response(
+                {"error": f"Failed to upload profile photo: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=["delete"])
+    def delete_profile_photo(self, request):
+        """Delete custom profile photo"""
+        try:
+            profile = request.user.profile
+
+            if not profile.profile_photo:
+                return Response(
+                    {"error": "No custom profile photo to delete"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Delete profile photos
+            profile.delete_profile_photo()
+
+            # Return updated profile photo info (will fall back to Google photo if available)
+            serializer = ProfilePhotoSerializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"error": "User profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.exception("Error deleting profile photo")
+            return Response(
+                {"error": f"Failed to delete profile photo: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=["get"])
+    def profile_photo_info(self, request):
+        """Get current profile photo information"""
+        try:
+            profile = request.user.profile
+            serializer = ProfilePhotoSerializer(profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"error": "User profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class AccountViewSet(viewsets.ModelViewSet):

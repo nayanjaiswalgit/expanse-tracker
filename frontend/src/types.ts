@@ -7,10 +7,25 @@ export interface User {
   preferred_date_format: string;
   enable_notifications: boolean;
   profile_picture?: string;
+  profile_photo_url?: string;
+  profile_photo_thumbnail_url?: string;
+  has_custom_photo?: boolean;
   ai_credits_remaining?: number;
   current_plan?: string;
   subscription_status?: string;
   created_at: string;
+  // Additional profile fields
+  phone?: string;
+  bio?: string;
+  website?: string;
+  location?: string;
+  default_currency?: string;
+  timezone?: string;
+  language?: string;
+  theme?: string;
+  notifications_enabled?: boolean;
+  email_notifications?: boolean;
+  push_notifications?: boolean;
 }
 
 export interface Account {

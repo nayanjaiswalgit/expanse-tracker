@@ -98,8 +98,30 @@ class UserProfile(models.Model):
 
     # Preferences
     default_currency = models.CharField(max_length=3, default="USD")
+    preferred_currency = models.CharField(max_length=3, default="USD")
+    preferred_date_format = models.CharField(max_length=20, default="YYYY-MM-DD")
     timezone = models.CharField(max_length=50, default="UTC")
     language = models.CharField(max_length=10, default="en")
+    theme = models.CharField(max_length=20, default="system", choices=[
+        ("light", "Light"),
+        ("dark", "Dark"),
+        ("system", "System")
+    ])
+
+    # Notification preferences
+    notifications_enabled = models.BooleanField(default=True)
+    email_notifications = models.BooleanField(default=True)
+    push_notifications = models.BooleanField(default=False)
+
+    # Profile information
+    phone = models.CharField(max_length=20, blank=True)
+    bio = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    location = models.CharField(max_length=100, blank=True)
+
+    # Profile photo (custom uploaded)
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    profile_photo_thumbnail = models.ImageField(upload_to='profile_photos/thumbnails/', blank=True, null=True)
 
     # Google OAuth essential data
     google_profile_picture = models.URLField(blank=True, null=True)
@@ -159,6 +181,34 @@ class UserProfile(models.Model):
             self.save()
             return True
         return False
+
+    @property
+    def profile_photo_url(self):
+        """Get the best available profile photo URL"""
+        if self.profile_photo:
+            return self.profile_photo.url
+        elif self.google_profile_picture:
+            return self.google_profile_picture
+        return None
+
+    @property
+    def profile_photo_thumbnail_url(self):
+        """Get the thumbnail profile photo URL"""
+        if self.profile_photo_thumbnail:
+            return self.profile_photo_thumbnail.url
+        elif self.google_profile_picture:
+            return self.google_profile_picture
+        return None
+
+    def delete_profile_photo(self):
+        """Delete custom profile photo and thumbnail"""
+        if self.profile_photo:
+            self.profile_photo.delete(save=False)
+        if self.profile_photo_thumbnail:
+            self.profile_photo_thumbnail.delete(save=False)
+        self.profile_photo = None
+        self.profile_photo_thumbnail = None
+        self.save()
 
 
 # ================================

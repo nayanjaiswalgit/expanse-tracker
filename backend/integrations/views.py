@@ -5,12 +5,15 @@ Views for integrations app - Gmail OAuth and account management.
 import os
 from rest_framework import views, permissions, status
 from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from django.shortcuts import redirect
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from .models import GoogleAccount
 from .serializers import GoogleAccountSerializer
+from .services.currency_service import CurrencyService
+from .constants import SUPPORTED_CURRENCIES
 
 # Allow insecure transport for development (OAuth over HTTP)
 if settings.DEBUG:
@@ -245,3 +248,76 @@ class GmailConnectionTestView(views.APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_supported_currencies(request):
+    """Get list of supported currencies with their symbols and names."""
+    return Response({
+        'currencies': SUPPORTED_CURRENCIES,
+        'count': len(SUPPORTED_CURRENCIES)
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_exchange_rates(request):
+    """Get current exchange rates for a base currency."""
+    base_currency = request.query_params.get('base', 'USD')
+
+    currency_service = CurrencyService()
+    rates = currency_service.get_all_rates(base_currency)
+
+    if rates:
+        return Response({
+            'base_currency': base_currency,
+            'rates': rates,
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'error': f'Unable to fetch exchange rates for {base_currency}'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def convert_currency(request):
+    """Convert amount between currencies."""
+    data = request.data
+
+    from_currency = data.get('from_currency')
+    to_currency = data.get('to_currency')
+    amount = data.get('amount')
+
+    if not all([from_currency, to_currency, amount]):
+        return Response({
+            'error': 'from_currency, to_currency, and amount are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        amount = float(amount)
+    except (ValueError, TypeError):
+        return Response({
+            'error': 'Amount must be a valid number'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    currency_service = CurrencyService()
+    from decimal import Decimal
+    converted_amount = currency_service.convert_amount(
+        Decimal(str(amount)), from_currency, to_currency
+    )
+
+    if converted_amount is not None:
+        exchange_rate = currency_service.get_exchange_rate(from_currency, to_currency)
+        return Response({
+            'from_currency': from_currency,
+            'to_currency': to_currency,
+            'original_amount': amount,
+            'converted_amount': float(converted_amount),
+            'exchange_rate': float(exchange_rate) if exchange_rate else None,
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'error': f'Unable to convert from {from_currency} to {to_currency}'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)

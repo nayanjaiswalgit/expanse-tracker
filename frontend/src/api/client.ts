@@ -150,6 +150,30 @@ interface GmailSyncStatus {
   error_message?: string;
 }
 
+interface Currency {
+  code: string;
+  name: string;
+  symbol: string;
+}
+
+interface CurrencyResponse {
+  currencies: Currency[];
+  count: number;
+}
+
+interface ExchangeRateResponse {
+  base_currency: string;
+  rates: Record<string, number>;
+}
+
+interface CurrencyConversionResponse {
+  from_currency: string;
+  to_currency: string;
+  original_amount: number;
+  converted_amount: number;
+  exchange_rate: number;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 class ApiClient {
@@ -376,6 +400,11 @@ class ApiClient {
     email_notifications?: boolean;
     push_notifications?: boolean;
     full_name?: string;
+    email?: string;
+    phone?: string;
+    bio?: string;
+    website?: string;
+    location?: string;
   } | FormData): Promise<User> {
     const headers = preferences instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
 
@@ -1112,6 +1141,26 @@ class ApiClient {
     return response.data;
   }
 
+  // Currency API
+  async getSupportedCurrencies(): Promise<CurrencyResponse> {
+    const response = await this.client.get('/integrations/currencies/');
+    return response.data;
+  }
+
+  async getExchangeRates(baseCurrency = 'USD'): Promise<ExchangeRateResponse> {
+    const response = await this.client.get(`/integrations/currencies/exchange-rates/?base=${baseCurrency}`);
+    return response.data;
+  }
+
+  async convertCurrency(fromCurrency: string, toCurrency: string, amount: number): Promise<CurrencyConversionResponse> {
+    const response = await this.client.post('/integrations/currencies/convert/', {
+      from_currency: fromCurrency,
+      to_currency: toCurrency,
+      amount
+    });
+    return response.data;
+  }
+
   // Generic HTTP methods for direct API access
   async get(url: string, config?: Record<string, unknown>): Promise<unknown> {
     const response = await this.client.get(url, config);
@@ -1153,3 +1202,5 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+export type { Currency, CurrencyResponse, ExchangeRateResponse, CurrencyConversionResponse };

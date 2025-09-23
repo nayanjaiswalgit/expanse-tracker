@@ -133,16 +133,20 @@ export const Layout = () => {
           {/* Minimize Button - Only show on desktop */}
           <motion.button
             onClick={() => setSidebarMinimized(!sidebarMinimized)}
-            className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 -right-3 bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-full p-1.5 text-secondary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors`}
+            className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 right-4 h-8 w-8 items-center justify-center rounded-lg border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-800 text-secondary-600 dark:text-secondary-400 shadow-md hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:text-secondary-900 dark:hover:text-secondary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transition-colors z-50`}
             aria-label={sidebarMinimized ? 'Expand sidebar' : 'Minimize sidebar'}
             aria-expanded={!sidebarMinimized}
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.15 }}
           >
-            {sidebarMinimized ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
+            <motion.div
+              initial={false}
+              animate={{ rotate: sidebarMinimized ? 180 : 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+            >
               <ChevronLeft className="h-4 w-4" />
-            )}
+            </motion.div>
           </motion.button>
         </motion.div>
 
@@ -241,13 +245,21 @@ export const Layout = () => {
                     <div className="relative" ref={dropdownRef}>
                         <motion.button
                         onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                        className="bg-secondary-100 dark:bg-secondary-700 rounded-full h-10 w-10 flex items-center justify-center group relative hover:bg-secondary-100 dark:hover:bg-secondary-600 transition-colors"
+                        className="bg-secondary-100 dark:bg-secondary-700 rounded-full h-10 w-10 flex items-center justify-center group relative hover:bg-secondary-100 dark:hover:bg-secondary-600 transition-colors overflow-hidden"
                         aria-label="Profile menu"
                         whileTap={{ scale: 0.9 }}
                         >
-                        <span className="text-lg font-medium text-secondary-900 dark:text-secondary-100">
+                        {state.user?.profile_photo_thumbnail_url || state.user?.profile_photo_url ? (
+                            <img
+                            src={state.user.profile_photo_thumbnail_url || state.user.profile_photo_url}
+                            alt="Profile"
+                            className="w-full h-full object-cover rounded-full"
+                            />
+                        ) : (
+                            <span className="text-lg font-medium text-secondary-900 dark:text-secondary-100">
                             {state.user?.full_name?.charAt(0) || state.user?.email?.charAt(0) || 'U'}
-                        </span>
+                            </span>
+                        )}
                         </motion.button>
                         
                         {/* Profile Dropdown - Minimized */}
@@ -316,10 +328,18 @@ export const Layout = () => {
                         whileTap={{ scale: 0.98 }}
                     >
                         <div className="flex items-center min-w-0 flex-1">
-                        <div className="bg-secondary-100 dark:bg-secondary-700 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                        <div className="bg-secondary-100 dark:bg-secondary-700 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {state.user?.profile_photo_thumbnail_url || state.user?.profile_photo_url ? (
+                            <img
+                                src={state.user.profile_photo_thumbnail_url || state.user.profile_photo_url}
+                                alt="Profile"
+                                className="w-full h-full object-cover rounded-full"
+                            />
+                            ) : (
                             <span className="text-lg font-medium text-secondary-900 dark:text-secondary-100">
-                            {state.user?.full_name?.charAt(0) || state.user?.email?.charAt(0) || 'U'}
+                                {state.user?.full_name?.charAt(0) || state.user?.email?.charAt(0) || 'U'}
                             </span>
+                            )}
                         </div>
                         <div className="ml-4 flex-1 min-w-0 overflow-hidden">
                             <p className="text-base font-medium text-secondary-900 dark:text-secondary-100 truncate">

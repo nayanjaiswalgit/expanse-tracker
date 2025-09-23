@@ -24,8 +24,10 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <Outlet />
-          <CookieConsent />
+       
+            <Outlet />
+            <CookieConsent />
+          
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

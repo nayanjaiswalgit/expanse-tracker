@@ -9,6 +9,7 @@ import { createProfileFormConfig, createPasswordChangeFormConfig } from './forms
 import { ProfileFormData } from './schemas/forms';
 import { useToast } from '../../components/ui/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProfilePhotoUpload from '../../components/profile/ProfilePhotoUpload';
 
 const ProfileSettings: React.FC = () => {
   const { state: authState, updateUser } = useAuth();
@@ -37,42 +38,18 @@ const ProfileSettings: React.FC = () => {
     }
   };
 
-  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Profile picture must be smaller than 5MB.');
-      showError('Upload Failed', 'Profile picture must be smaller than 5MB.');
-      return;
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file.');
-      showError('Upload Failed', 'Please upload an image file.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('profile_picture', file);
-
-      const updatedUser = await apiClient.updateUserPreferences(formData);
-      updateUser(updatedUser);
-      showSuccess('Profile Picture Updated', 'Your profile picture has been updated successfully.');
-    } catch (err: any) {
-      console.error('Profile picture upload failed:', err);
-      const errorMessage = err.message || err.response?.data?.detail || 'Unable to upload profile picture. Please try again.';
-      setError(errorMessage);
-      showError('Upload Failed', errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleProfilePhotoUpdate = (photoData: {
+    profile_photo_url?: string;
+    profile_photo_thumbnail_url?: string;
+    has_custom_photo: boolean;
+  }) => {
+    // Update the user state with new photo URLs
+    updateUser({
+      ...authState.user!,
+      profile_photo_url: photoData.profile_photo_url,
+      profile_photo_thumbnail_url: photoData.profile_photo_thumbnail_url,
+      has_custom_photo: photoData.has_custom_photo,
+    });
   };
 
   const handlePasswordChange = async (data: { current_password: string; new_password: string; confirm_password: string }) => {
@@ -128,66 +105,26 @@ const ProfileSettings: React.FC = () => {
           transition={{ delay: 0.1 }}
           className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
         >
-          <div className="flex items-start space-x-6">
-            <div className="relative group">
-              <div className="h-32 w-32 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center overflow-hidden shadow-lg border-4 border-white dark:border-gray-700">
-                {authState.user?.profile_picture ? (
-                  <img
-                    src={authState.user.profile_picture}
-                    alt="Profile"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <User className="h-16 w-16 text-gray-400 dark:text-gray-500" />
-                )}
-              </div>
-
-              {/* Upload Overlay */}
-              <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer">
-                <div className="text-white text-center">
-                  <Upload className="h-6 w-6 mx-auto mb-1" />
-                  <span className="text-xs font-medium">Upload</span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleProfilePictureUpload}
-                  className="hidden"
-                  disabled={isLoading}
-                />
-              </label>
-
-              {/* Camera Button */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="absolute -bottom-2 -right-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-colors duration-200"
-                onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
-                disabled={isLoading}
-              >
-                <Camera className="h-4 w-4" />
-              </motion.button>
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="bg-blue-100 dark:bg-blue-900 rounded-lg p-2">
+              <Camera className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
-
-            <div className="flex-1 min-w-0">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {authState.user?.full_name || 'Your Name'}
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
-                {authState.user?.email}
-              </p>
-              <div className="mt-4 space-y-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Upload a professional photo to personalize your profile
-                </p>
-                <div className="flex items-center space-x-4 text-xs text-gray-400">
-                  <span>• Max file size: 5MB</span>
-                  <span>• Formats: JPG, PNG, GIF</span>
-                  <span>• Recommended: 400x400px</span>
-                </div>
-              </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Picture</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Upload and customize your profile photo with built-in cropping tools</p>
             </div>
           </div>
+
+          <ProfilePhotoUpload
+            currentPhotoUrl={authState.user?.profile_photo_url}
+            currentThumbnailUrl={authState.user?.profile_photo_thumbnail_url}
+            hasCustomPhoto={authState.user?.has_custom_photo || false}
+            onPhotoUpdated={handleProfilePhotoUpdate}
+            onError={(error) => {
+              setError(error);
+              showError('Photo Upload Error', error);
+            }}
+          />
         </motion.div>
 
         {/* Profile Information Section */}
