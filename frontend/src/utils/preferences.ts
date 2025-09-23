@@ -11,7 +11,45 @@ export const setCurrencySymbols = (currencyData: Array<{ code: string; symbol: s
 };
 
 export const getCurrencySymbol = (currencyCode: string): string => {
-  return DYNAMIC_CURRENCY_SYMBOLS[currencyCode] || currencyCode;
+  return DYNAMIC_CURRENCY_SYMBOLS[currencyCode] || getCurrencyIcon(currencyCode);
+};
+
+export const getCurrencyIcon = (currencyCode: string): string => {
+  const currencyIcons: Record<string, string> = {
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '¥',
+    'INR': '₹',
+    'CNY': '¥',
+    'KRW': '₩',
+    'CAD': 'C$',
+    'AUD': 'A$',
+    'CHF': 'CHF',
+    'SGD': 'S$',
+    'HKD': 'HK$',
+    'SEK': 'kr',
+    'NOK': 'kr',
+    'DKK': 'kr',
+    'PLN': 'zł',
+    'CZK': 'Kč',
+    'HUF': 'Ft',
+    'RUB': '₽',
+    'BRL': 'R$',
+    'MXN': '$',
+    'AED': 'د.إ',
+    'SAR': '﷼',
+    'TRY': '₺',
+    'ZAR': 'R',
+    'NZD': 'NZ$',
+    'THB': '฿',
+    'MYR': 'RM',
+    'IDR': 'Rp',
+    'PHP': '₱',
+    'VND': '₫',
+  };
+
+  return currencyIcons[currencyCode] || currencyCode;
 };
 
 export const formatCurrency = (amount: number, user?: User | null): string => {
