@@ -152,7 +152,7 @@ export const Dashboard: React.FC = () => {
     const categoryTotals: Record<string, number> = {};
     filteredTransactions.forEach(transaction => {
       if (transaction.category_id && parseFloat(transaction.amount) < 0) {
-        const categories = categoriesQuery.data || [];
+        const categories = categoriesQuery.data?.results || [];
         const category = categories.find((cat: any) => cat.id === transaction.category_id);
         const categoryName = category?.name || 'Uncategorized';
         categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + Math.abs(parseFloat(transaction.amount));
@@ -247,7 +247,7 @@ export const Dashboard: React.FC = () => {
     
     filteredTransactions.forEach(transaction => {
       if (transaction.category_id && parseFloat(transaction.amount) < 0) {
-        const categories = categoriesQuery.data || [];
+        const categories = categoriesQuery.data?.results || [];
         const category = categories.find((cat: any) => cat.id === transaction.category_id);
         const categoryName = category?.name || 'Uncategorized';
         if (!categoryTotals[categoryName]) {
@@ -535,7 +535,7 @@ export const Dashboard: React.FC = () => {
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {accountsQuery.data || [].slice(0, 4).map((account) => (
+                  {(accountsQuery.data?.results || []).slice(0, 4).map((account) => (
                     <div key={account.id} className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -558,7 +558,7 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  {accountsQuery.data || [].length === 0 && (
+                  {(accountsQuery.data?.results || []).length === 0 && (
                     <p className="text-sm text-secondary-500 dark:text-secondary-400 text-center py-4">No accounts added yet</p>
                   )}
                 </div>
@@ -579,7 +579,7 @@ export const Dashboard: React.FC = () => {
                     <div key={transaction.id} className="flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-secondary-900 dark:text-secondary-100">{transaction.description}</p>
-                        <p className="text-sm text-secondary-500 dark:text-secondary-400">{categoriesQuery.data || [].find(cat => cat.id === transaction.category_id)?.name || 'Uncategorized'}</p>
+                        <p className="text-sm text-secondary-500 dark:text-secondary-400">{(categoriesQuery.data?.results || []).find(cat => cat.id === transaction.category_id)?.name || 'Uncategorized'}</p>
                       </div>
                       <div className="text-right">
                         <p className={`font-semibold ${parseFloat(transaction.amount) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>

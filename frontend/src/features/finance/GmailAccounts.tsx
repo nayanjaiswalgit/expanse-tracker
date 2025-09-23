@@ -18,21 +18,16 @@ import { useToast } from "../../components/ui/Toast";
 
 interface GmailAccount {
   id: number;
-  email_address: string;
-  display_name: string;
-  status: "active" | "inactive" | "auth_expired" | "error";
-  sync_frequency: "manual" | "hourly" | "daily" | "weekly";
+  name: string;
+  email: string;
+  is_active: boolean;
+  transaction_tag: string;
+  sender_filters: string[];
+  keyword_filters: string[];
   last_sync_at: string | null;
-  search_query: string;
-  date_range_days: number;
-  total_emails_processed: number;
-  transactions_extracted: number;
-  last_error_message: string;
-  default_account: number | null;
-  needs_reauth: boolean;
-  is_ready_for_sync: boolean;
   created_at: string;
   updated_at: string;
+  connected: boolean;
 }
 
 interface Account {
@@ -85,33 +80,12 @@ const GmailAccounts: React.FC = () => {
       const accountsResponse = await apiClient.getAccounts();
       setAccounts(accountsResponse);
 
-      // Try to load Gmail account status
+      // Load Gmail accounts using new API
       try {
-        const gmailResponse = await apiClient.getGmailAccount();
-        if (gmailResponse.connected) {
-          setGmailAccounts([{
-            id: gmailResponse.id,
-            email_address: gmailResponse.email,
-            display_name: gmailResponse.email,
-            status: "active",
-            sync_frequency: "manual",
-            last_sync_at: gmailResponse.updated_at,
-            search_query: "",
-            date_range_days: 30,
-            total_emails_processed: 0,
-            transactions_extracted: 0,
-            last_error_message: "",
-            default_account: null,
-            needs_reauth: false,
-            is_ready_for_sync: true,
-            created_at: gmailResponse.created_at,
-            updated_at: gmailResponse.updated_at,
-          }]);
-        } else {
-          setGmailAccounts([]);
-        }
+        const gmailResponse = await apiClient.get("/integrations/gmail-accounts/");
+        setGmailAccounts(gmailResponse.data.accounts || []);
       } catch (error) {
-        // No Gmail account connected
+        console.error("Error loading Gmail accounts:", error);
         setGmailAccounts([]);
       }
 
@@ -135,10 +109,15 @@ const GmailAccounts: React.FC = () => {
     }
   };
 
-  const handleSyncAccount = async () => {
+  const handleSyncAccount = async (accountId?: number) => {
     try {
-      await apiClient.testGmailFetch();
-      showSuccess("Sync Started", "Gmail sync started successfully");
+      if (accountId) {
+        await apiClient.post(`/integrations/gmail-accounts/${accountId}/sync/`);
+        showSuccess("Sync Started", "Gmail sync started for account");
+      } else {
+        await apiClient.post("/integrations/gmail-sync/");
+        showSuccess("Sync Started", "Gmail sync started for all accounts");
+      }
       loadData(); // Refresh data
     } catch (error) {
       console.error("Error syncing account:", error);
@@ -146,17 +125,31 @@ const GmailAccounts: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
+  const handleReconnectAccount = async (accountId: number) => {
+    try {
+      // Delete the existing account first
+      await apiClient.delete(`/integrations/gmail-accounts/${accountId}/`);
+
+      // Start new OAuth flow
+      const response = await apiClient.connectGmail();
+      window.location.href = response.authorization_url;
+    } catch (error) {
+      console.error("Error reconnecting account:", error);
+      showError("Reconnection Error", "Error starting reconnection");
+    }
+  };
+
+  const handleDeleteAccount = async (accountId: number) => {
     if (
       !confirm(
-        "Are you sure you want to disconnect your Gmail account? This will not delete your existing transactions."
+        "Are you sure you want to disconnect this Gmail account? This will not delete your existing transactions."
       )
     ) {
       return;
     }
 
     try {
-      await apiClient.disconnectGmail();
+      await apiClient.delete(`/integrations/gmail-accounts/${accountId}/`);
       showSuccess("Account Disconnected", "Gmail account disconnected successfully");
       loadData();
     } catch (error) {
@@ -165,9 +158,17 @@ const GmailAccounts: React.FC = () => {
     }
   };
 
-  const handleUpdateConfig = async (config: { email_filter_keywords?: string[]; email_filter_senders?: string[] }) => {
+  const handleUpdateConfig = async (config: {
+    name?: string;
+    transaction_tag?: string;
+    sender_filters?: string[];
+    keyword_filters?: string[];
+    is_active?: boolean;
+  }) => {
+    if (!selectedAccount) return;
+
     try {
-      await apiClient.updateGmailSettings(config);
+      await apiClient.patch(`/integrations/gmail-accounts/${selectedAccount.id}/`, config);
       showSuccess("Settings Updated", "Gmail settings updated successfully");
       setShowConfigModal(false);
       loadData();
@@ -181,7 +182,7 @@ const GmailAccounts: React.FC = () => {
     if (selectedTransactions.length === 0) return;
 
     try {
-      await apiClient.post("/extracted-transactions/actions/", {
+      await apiClient.post("/integrations/extracted-transactions/actions/", {
         action: "bulk_approve",
         transaction_ids: selectedTransactions,
       });
@@ -198,7 +199,7 @@ const GmailAccounts: React.FC = () => {
     if (selectedTransactions.length === 0) return;
 
     try {
-      await apiClient.post("/extracted-transactions/actions/", {
+      await apiClient.post("/integrations/extracted-transactions/actions/", {
         action: "bulk_reject",
         transaction_ids: selectedTransactions,
       });
@@ -211,19 +212,10 @@ const GmailAccounts: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "active":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "inactive":
-        return <Clock className="w-5 h-5 text-gray-500" />;
-      case "auth_expired":
-        return <XCircle className="w-5 h-5 text-orange-500" />;
-      case "error":
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
-      default:
-        return <Clock className="w-5 h-5 text-gray-500" />;
-    }
+  const getStatusIcon = (isActive: boolean) => {
+    return isActive
+      ? <CheckCircle className="w-5 h-5 text-green-500" />
+      : <Clock className="w-5 h-5 text-gray-500" />;
   };
 
 
@@ -270,32 +262,32 @@ const GmailAccounts: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {getStatusIcon(account.status)}
+                    {getStatusIcon(account.is_active)}
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-gray-900 dark:text-white">
-                          {account.email_address}
+                          {account.name}
                         </h4>
                         <div className={`px-2 py-1 rounded text-xs font-medium ${
-                          account.status === 'active'
+                          account.is_active
                             ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                            : account.status === 'auth_expired'
-                            ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400'
-                            : account.status === 'error'
-                            ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                         }`}>
-                          {account.status === 'auth_expired' ? 'Auth Expired' :
-                           account.status.charAt(0).toUpperCase() + account.status.slice(1)}
+                          {account.is_active ? 'Active' : 'Inactive'}
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {account.total_emails_processed} emails • {account.transactions_extracted} transactions
+                        {account.email} • Tag: {account.transaction_tag}
                       </p>
+                      {account.last_sync_at && (
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                          Last sync: {new Date(account.last_sync_at).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button onClick={handleSyncAccount} size="sm" variant="ghost">
+                    <Button onClick={() => handleSyncAccount(account.id)} size="sm" variant="ghost" title="Sync emails">
                       <RefreshCw className="w-4 h-4" />
                     </Button>
                     <Button
@@ -305,14 +297,25 @@ const GmailAccounts: React.FC = () => {
                       }}
                       variant="ghost"
                       size="sm"
+                      title="Configure account"
                     >
                       <Settings className="w-4 h-4" />
                     </Button>
                     <Button
-                      onClick={handleDeleteAccount}
+                      onClick={() => handleReconnectAccount(account.id)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 dark:text-blue-400"
+                      title="Reconnect to get refresh token"
+                    >
+                      🔄
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteAccount(account.id)}
                       variant="ghost"
                       size="sm"
                       className="text-red-600 dark:text-red-400"
+                      title="Delete account"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -453,18 +456,30 @@ const GmailAccounts: React.FC = () => {
 const ConfigModal: React.FC<{
   account: GmailAccount;
   onClose: () => void;
-  onSave: (config: { email_filter_keywords?: string[]; email_filter_senders?: string[] }) => void;
+  onSave: (config: {
+    name?: string;
+    transaction_tag?: string;
+    sender_filters?: string[];
+    keyword_filters?: string[];
+    is_active?: boolean;
+  }) => void;
 }> = ({ account, onClose, onSave }) => {
-  const [filterKeywords, setFilterKeywords] = useState<string>('');
-  const [filterSenders, setFilterSenders] = useState<string>('');
+  const [name, setName] = useState(account.name);
+  const [transactionTag, setTransactionTag] = useState(account.transaction_tag);
+  const [senderFilters, setSenderFilters] = useState(account.sender_filters.join(', '));
+  const [keywordFilters, setKeywordFilters] = useState(account.keyword_filters.join(', '));
+  const [isActive, setIsActive] = useState(account.is_active);
 
   const handleSave = () => {
-    const keywords = filterKeywords.split(',').map(k => k.trim()).filter(k => k);
-    const senders = filterSenders.split(',').map(s => s.trim()).filter(s => s);
+    const senders = senderFilters.split(',').map(s => s.trim()).filter(s => s);
+    const keywords = keywordFilters.split(',').map(k => k.trim()).filter(k => k);
 
     onSave({
-      email_filter_keywords: keywords,
-      email_filter_senders: senders,
+      name,
+      transaction_tag: transactionTag,
+      sender_filters: senders,
+      keyword_filters: keywords,
+      is_active: isActive,
     });
   };
 
@@ -472,39 +487,81 @@ const ConfigModal: React.FC<{
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={`Configure ${account.email_address}`}
+      title={`Configure ${account.email}`}
     >
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Filter Keywords
+            Display Name
           </label>
           <input
             type="text"
-            value={filterKeywords}
-            onChange={(e) => setFilterKeywords(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            placeholder="receipt, transaction, payment"
+            placeholder="My Gmail Account"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Transaction Tag
+          </label>
+          <input
+            type="text"
+            value={transactionTag}
+            onChange={(e) => setTransactionTag(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder="email-import"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Comma-separated keywords to search for in emails
+            Tag to apply to transactions created from this account
           </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Filter Senders
+            Sender Filters
           </label>
           <input
             type="text"
-            value={filterSenders}
-            onChange={(e) => setFilterSenders(e.target.value)}
+            value={senderFilters}
+            onChange={(e) => setSenderFilters(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             placeholder="bank@example.com, paypal@paypal.com"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Comma-separated email addresses to filter by sender
+            Only process emails from these senders (leave empty for all)
           </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Keyword Filters
+          </label>
+          <input
+            type="text"
+            value={keywordFilters}
+            onChange={(e) => setKeywordFilters(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder="receipt, transaction, payment"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Only process emails containing these keywords
+          </p>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="is-active"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="is-active" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Active (enable email syncing)
+          </label>
         </div>
 
         <div className="flex justify-end gap-3 pt-4">

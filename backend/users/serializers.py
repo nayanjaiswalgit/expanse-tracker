@@ -100,6 +100,26 @@ class UserSerializer(serializers.ModelSerializer):
         # Include profile data if available
         if hasattr(instance, 'profile'):
             profile = instance.profile
+            request = self.context.get('request')
+
+            profile_photo_url = None
+            if profile.profile_photo:
+                if request:
+                    profile_photo_url = request.build_absolute_uri(profile.profile_photo.url)
+                else:
+                    profile_photo_url = profile.profile_photo.url
+            elif profile.google_profile_picture:
+                profile_photo_url = profile.google_profile_picture
+
+            profile_photo_thumbnail_url = None
+            if profile.profile_photo_thumbnail:
+                if request:
+                    profile_photo_thumbnail_url = request.build_absolute_uri(profile.profile_photo_thumbnail.url)
+                else:
+                    profile_photo_thumbnail_url = profile.profile_photo_thumbnail.url
+            elif profile.google_profile_picture:
+                profile_photo_thumbnail_url = profile.google_profile_picture
+
             data.update({
                 'phone': profile.phone,
                 'bio': profile.bio,
@@ -114,8 +134,8 @@ class UserSerializer(serializers.ModelSerializer):
                 'notifications_enabled': profile.notifications_enabled,
                 'email_notifications': profile.email_notifications,
                 'push_notifications': profile.push_notifications,
-                'profile_photo_url': profile.profile_photo_url,
-                'profile_photo_thumbnail_url': profile.profile_photo_thumbnail_url,
+                'profile_photo_url': profile_photo_url,
+                'profile_photo_thumbnail_url': profile_photo_thumbnail_url,
                 'has_custom_photo': bool(profile.profile_photo),
             })
 

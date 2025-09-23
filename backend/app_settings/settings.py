@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "integrations",
     "users",
     "ai",
+    "training.apps.TrainingConfig",
 ]
 
 SITE_ID = 1  # Added for django-allauth
@@ -140,6 +141,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+# Custom media URL for production
+CUSTOM_MEDIA_URL = config("CUSTOM_MEDIA_URL", default="")
+
+if not DEBUG and CUSTOM_MEDIA_URL:
+    MEDIA_URL = CUSTOM_MEDIA_URL
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -185,7 +192,7 @@ SIMPLE_JWT = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http://127.0.0.1:3000"
+    "CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http://127.0.0.1:3000,http://localhost:5175"
 ).split(",")
 
 CORS_ALLOW_CREDENTIALS = True
@@ -195,9 +202,11 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://localhost:5175",
     "http://127.0.0.1",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5175",
 ]
 
 # File upload settings
@@ -309,6 +318,10 @@ EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = "Finance Tracker <noreply@financetracker.com>"
+
+# Email fetch limit for integrations
+EMAIL_FETCH_LIMIT = config("EMAIL_FETCH_LIMIT", default=10000, cast=int)
+
 
 # Logging Configuration
 # Import logging configuration

@@ -14,47 +14,26 @@ const GmailCallback: React.FC = () => {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const handleCallback = async () => {
-      const code = searchParams.get("code");
-      const state = searchParams.get("state");
+    const handleCallback = () => {
+      const success = searchParams.get("success");
+      const email = searchParams.get("email");
       const error = searchParams.get("error");
 
       if (error) {
         setStatus("error");
         setMessage("Authorization was denied or an error occurred.");
-        setTimeout(() => navigate("/gmail"), 3000);
+        setTimeout(() => navigate("/settings?tab=integrations"), 3000);
         return;
       }
 
-      if (!code || !state) {
+      if (success === "true" && email) {
+        setStatus("success");
+        setMessage(`Successfully connected ${email}!`);
+        setTimeout(() => navigate("/settings?tab=integrations"), 1500);
+      } else {
         setStatus("error");
-        setMessage("Missing authorization code or state parameter.");
-        setTimeout(() => navigate("/gmail"), 3000);
-        return;
-      }
-
-      try {
-        const result = await apiClient.handleGmailOAuthCallback(code, state);
-
-        if (result.success) {
-          setStatus("success");
-          setMessage(
-            `Successfully connected ${result.gmail_account.email_address}!`
-          );
-          setTimeout(() => navigate("/gmail"), 2000);
-        } else {
-          throw new Error(result.error || "Unknown error occurred");
-        }
-      } catch (error: unknown) {
-        console.error("OAuth callback error:", error);
-        setStatus("error");
-        setMessage(
-          (error as { response?: { data?: { error?: string } } })?.response
-            ?.data?.error ||
-            (error as Error)?.message ||
-            "Failed to connect Gmail account"
-        );
-        setTimeout(() => navigate("/gmail"), 3000);
+        setMessage("Failed to connect Gmail account. Please try again.");
+        setTimeout(() => navigate("/settings?tab=integrations"), 3000);
       }
     };
 
@@ -78,28 +57,49 @@ const GmailCallback: React.FC = () => {
 
         {status === "success" && (
           <>
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-            <h2 className="text-xl font-semibold text-gray-900 mt-4">
-              Success!
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-10 h-10 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mt-6">
+              Gmail Connected Successfully!
             </h2>
-            <p className="text-gray-600 mt-2">{message}</p>
+            <p className="text-gray-600 mt-3 text-lg">{message}</p>
+            <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm text-green-800">
+                🎉 Your Gmail account is now connected and ready to sync emails for transaction import.
+              </p>
+            </div>
             <p className="text-sm text-gray-500 mt-4">
-              Redirecting you back to Gmail settings...
+              Redirecting you to integrations settings in 1.5 seconds...
             </p>
           </>
         )}
 
         {status === "error" && (
           <>
-            <XCircle className="w-16 h-16 text-red-500 mx-auto" />
-            <h2 className="text-xl font-semibold text-gray-900 mt-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+              <XCircle className="w-10 h-10 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mt-6">
               Connection Failed
             </h2>
-            <p className="text-gray-600 mt-2">{message}</p>
+            <p className="text-gray-600 mt-3">{message}</p>
+            <div className="mt-6 p-4 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-sm text-red-800">
+                ❌ Unable to connect your Gmail account. Please try again or check your Google account permissions.
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Button
+                onClick={() => navigate("/settings?tab=integrations")}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Go Back to Settings
+              </Button>
+            </div>
             <p className="text-sm text-gray-500 mt-4">
-              Redirecting you back to Gmail settings...
+              Auto-redirecting in 3 seconds...
             </p>
-            <Button onClick={() => navigate("/gmail")}>Go Back</Button>
           </>
         )}
       </div>

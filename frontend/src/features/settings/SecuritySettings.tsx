@@ -5,10 +5,27 @@ import { Button } from '../../components/ui/Button';
 import { ObjectForm } from '../../components/forms';
 import { createPasswordChangeFormConfig } from './forms';
 
+import React, { useState, useRef, useEffect } from 'react';
+import { useToast } from '../../components/ui/Toast';
+import { apiClient } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { ObjectForm } from '../../components/forms';
+import { createPasswordChangeFormConfig } from './forms';
+import { motion, AnimatePresence } from 'framer-motion';
+
 const SecuritySettings: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const passwordFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showPasswordChange) {
+      requestAnimationFrame(() => {
+        passwordFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [showPasswordChange]);
 
 
   const handlePasswordChange = async (data: { current_password: string; new_password: string; confirm_password: string }) => {
@@ -50,16 +67,25 @@ const SecuritySettings: React.FC = () => {
           </Button>
         </div>
 
-        {showPasswordChange && (
-          <div className="theme-card p-6 mt-4">
-            <ObjectForm
-              config={createPasswordChangeFormConfig(
-                handlePasswordChange,
-                isLoading
-              )}
-            />
-          </div>
-        )}
+        <AnimatePresence>
+          {showPasswordChange && (
+            <motion.div
+              ref={passwordFormRef}
+              className="theme-card p-6 mt-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ObjectForm
+                config={createPasswordChangeFormConfig(
+                  handlePasswordChange,
+                  isLoading
+                )}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Two-Factor Authentication Section */}

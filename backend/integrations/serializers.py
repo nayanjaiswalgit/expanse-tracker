@@ -3,27 +3,36 @@ Serializers for integrations app.
 """
 
 from rest_framework import serializers
-from .models import GoogleAccount
+from .models import GmailAccount
 
 
-class GoogleAccountSerializer(serializers.ModelSerializer):
-    """Serializer for GoogleAccount model"""
+class GmailAccountSerializer(serializers.ModelSerializer):
+    """Serializer for GmailAccount model"""
 
     class Meta:
-        model = GoogleAccount
+        model = GmailAccount
         fields = [
             "id",
+            "name",
             "email",
-            "connected",
-            "last_synced_history_id",
+            "is_active",
+            "transaction_tag",
+            "sender_filters",
+            "keyword_filters",
+            "last_sync_at",
             "created_at",
             "updated_at",
-            "email_filter_keywords",
-            "email_filter_senders",
+            "connected",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "email", "last_sync_at", "created_at", "updated_at"]
 
     def get_connected(self, obj):
         return True  # If object exists, it's connected
 
     connected = serializers.SerializerMethodField()
+
+
+# Keep old serializer for backward compatibility
+class GoogleAccountSerializer(GmailAccountSerializer):
+    """DEPRECATED: Use GmailAccountSerializer instead"""
+    pass

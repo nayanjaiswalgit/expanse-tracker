@@ -10,7 +10,7 @@ from django.conf import settings
 from django.shortcuts import redirect
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-from .models import GoogleAccount
+from .models import GmailAccount
 from .serializers import GoogleAccountSerializer
 from .services.currency_service import CurrencyService
 from .constants import SUPPORTED_CURRENCIES
@@ -53,7 +53,9 @@ class GmailConnectView(views.APIView):
         request.session["gmail_oauth_user_id"] = request.user.id
 
         authorization_url, state = flow.authorization_url(
-            access_type="offline", include_granted_scopes="true"
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent"  # Force consent screen to get refresh token
         )
 
         # Debug: Print the generated authorization URL
@@ -136,12 +138,18 @@ class GmailCallbackView(views.APIView):
             User = get_user_model()
             user = User.objects.get(id=user_id)
 
-            google_account, created = GoogleAccount.objects.update_or_create(
+            # Warn if no refresh token (shouldn't happen with prompt=consent)
+            if not flow.credentials.refresh_token:
+                print(f"WARNING: No refresh token received for {profile['emailAddress']}")
+                print("This will prevent automatic email syncing. User may need to reconnect.")
+
+            gmail_account, created = GmailAccount.objects.update_or_create(
                 user=user,
+                email=profile["emailAddress"],
                 defaults={
-                    "email": profile["emailAddress"],
+                    "name": f"Gmail ({profile['emailAddress']})",
                     "access_token": flow.credentials.token,
-                    "refresh_token": flow.credentials.refresh_token,
+                    "refresh_token": flow.credentials.refresh_token or "",
                     "expires_at": flow.credentials.expiry,
                 },
             )
@@ -150,79 +158,130 @@ class GmailCallbackView(views.APIView):
             del request.session["gmail_oauth_user_id"]
             del request.session["gmail_oauth_state"]
 
-            # Redirect to frontend success page
-            return redirect(
-                f"{settings.CORS_ALLOWED_ORIGINS[0]}/settings?gmail_connected=true"
-            )
+            # Redirect to frontend Gmail callback page
+            frontend_url = settings.CORS_ALLOWED_ORIGINS[0]
+            return redirect(f"{frontend_url}/gmail-callback?success=true&email={profile['emailAddress']}")
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class GmailAccountView(views.APIView):
-    """Manage Gmail account connection"""
+class GmailAccountListView(views.APIView):
+    """List and manage Gmail accounts"""
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Get current Gmail account status"""
-        try:
-            google_account = GoogleAccount.objects.get(user=request.user)
-            serializer = GoogleAccountSerializer(google_account)
-            return Response(serializer.data)
-        except GoogleAccount.DoesNotExist:
-            return Response({"connected": False})
-
-    def delete(self, request):
-        """Disconnect Gmail account"""
-        try:
-            google_account = GoogleAccount.objects.get(user=request.user)
-            google_account.delete()
-            return Response({"message": "Gmail account disconnected successfully"})
-        except GoogleAccount.DoesNotExist:
-            return Response(
-                {"error": "No Gmail account connected"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    def patch(self, request):
-        """Update Gmail account settings (filters, etc.)"""
-        try:
-            google_account = GoogleAccount.objects.get(user=request.user)
-
-            # Update filter settings
-            if "email_filter_keywords" in request.data:
-                google_account.email_filter_keywords = request.data[
-                    "email_filter_keywords"
-                ]
-            if "email_filter_senders" in request.data:
-                google_account.email_filter_senders = request.data[
-                    "email_filter_senders"
-                ]
-
-            google_account.save()
-
-            serializer = GoogleAccountSerializer(google_account)
-            return Response(serializer.data)
-        except GoogleAccount.DoesNotExist:
-            return Response(
-                {"error": "No Gmail account connected"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        """Get all Gmail accounts for user"""
+        gmail_accounts = GmailAccount.objects.filter(user=request.user)
+        serializer = GoogleAccountSerializer(gmail_accounts, many=True)
+        return Response({"accounts": serializer.data, "count": len(gmail_accounts)})
 
 
-class GmailTestFetchView(views.APIView):
-    """Test Gmail email fetching (for development)"""
+class GmailAccountDetailView(views.APIView):
+    """Manage individual Gmail account"""
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request):
-        """Manually trigger email fetch for testing"""
+    def get_account(self, request, account_id):
+        """Get specific Gmail account"""
         try:
-            from .tasks import fetch_emails_from_gmail
-            result = fetch_emails_from_gmail.delay(request.user.id)
+            return GmailAccount.objects.get(id=account_id, user=request.user)
+        except GmailAccount.DoesNotExist:
+            return None
+
+    def get(self, request, account_id):
+        """Get specific Gmail account details"""
+        account = self.get_account(request, account_id)
+        if not account:
             return Response(
-                {"message": "Email fetch task started", "task_id": result.id}
+                {"error": "Gmail account not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = GoogleAccountSerializer(account)
+        return Response(serializer.data)
+
+    def patch(self, request, account_id):
+        """Update Gmail account settings"""
+        account = self.get_account(request, account_id)
+        if not account:
+            return Response(
+                {"error": "Gmail account not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Update account settings
+        if "name" in request.data:
+            account.name = request.data["name"]
+        if "transaction_tag" in request.data:
+            account.transaction_tag = request.data["transaction_tag"]
+        if "sender_filters" in request.data:
+            account.sender_filters = request.data["sender_filters"]
+        if "keyword_filters" in request.data:
+            account.keyword_filters = request.data["keyword_filters"]
+        if "is_active" in request.data:
+            account.is_active = request.data["is_active"]
+
+        account.save()
+
+        serializer = GoogleAccountSerializer(account)
+        return Response(serializer.data)
+
+    def delete(self, request, account_id):
+        """Delete Gmail account"""
+        account = self.get_account(request, account_id)
+        if not account:
+            return Response(
+                {"error": "Gmail account not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        account.delete()
+        return Response({"message": "Gmail account deleted successfully"})
+
+
+class GmailSyncView(views.APIView):
+    """Manually trigger email sync for Gmail accounts"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, account_id=None):
+        """Manually trigger email sync"""
+        try:
+            from .tasks import sync_gmail_account
+
+            if account_id:
+                # Sync specific account
+                account = GmailAccount.objects.get(id=account_id, user=request.user)
+                result = sync_gmail_account.delay(account.id)
+                return Response({
+                    "message": f"Email sync started for account {account.email}",
+                    "task_id": result.id
+                })
+            else:
+                # Sync all user's accounts
+                user_accounts = GmailAccount.objects.filter(user=request.user, is_active=True)
+                if not user_accounts.exists():
+                    return Response(
+                        {"error": "No active Gmail accounts found"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+                task_ids = []
+                for account in user_accounts:
+                    result = sync_gmail_account.delay(account.id)
+                    task_ids.append({"account_id": account.id, "task_id": result.id})
+
+                return Response({
+                    "message": f"Email sync started for {len(task_ids)} accounts",
+                    "tasks": task_ids
+                })
+
+        except GmailAccount.DoesNotExist:
+            return Response(
+                {"error": "Gmail account not found"},
+                status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -6,8 +6,9 @@ from django.urls import path
 from .views import (
     GmailConnectView,
     GmailCallbackView,
-    GmailAccountView,
-    GmailTestFetchView,
+    GmailAccountListView,
+    GmailAccountDetailView,
+    GmailSyncView,
     GmailConnectionTestView,
     get_supported_currencies,
     get_exchange_rates,
@@ -21,8 +22,10 @@ urlpatterns = [
     # Gmail endpoints
     path("gmail-connect/", GmailConnectView.as_view(), name="gmail-connect"),
     path("gmail-callback/", GmailCallbackView.as_view(), name="gmail-callback"),
-    path("gmail-account/", GmailAccountView.as_view(), name="gmail-account"),
-    path("gmail-test-fetch/", GmailTestFetchView.as_view(), name="gmail-test-fetch"),
+    path("gmail-accounts/", GmailAccountListView.as_view(), name="gmail-accounts"),
+    path("gmail-accounts/<int:account_id>/", GmailAccountDetailView.as_view(), name="gmail-account-detail"),
+    path("gmail-sync/", GmailSyncView.as_view(), name="gmail-sync-all"),
+    path("gmail-accounts/<int:account_id>/sync/", GmailSyncView.as_view(), name="gmail-sync-account"),
     path("gmail-test-connection/", GmailConnectionTestView.as_view(), name="gmail-test-connection"),
 
     # Currency endpoints

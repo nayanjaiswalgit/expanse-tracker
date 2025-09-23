@@ -17,7 +17,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency } from "../../utils/preferences";
 import { Modal } from "../../components/ui/Modal";
 import { Upload } from "./Upload";
-import { useCurrency } from "./hooks/queries/useCurrency";
 import { useTags } from "./hooks/queries/useTags";
 import { Button } from "../../components/ui/Button";
 import type { Account } from "../../types";
@@ -54,7 +53,6 @@ const accountTypeColors = {
 
 export const AccountsManagement = () => {
   const { state: authState } = useAuth();
-  const { getDefaultCurrency } = useCurrency();
   const { allTags, setEntityTags } = useTags();
 
   const queryClient = useQueryClient();
@@ -66,6 +64,11 @@ export const AccountsManagement = () => {
   } = useQuery<Account[], Error>({
     queryKey: ["accounts"],
     queryFn: () => apiClient.getAccounts(),
+  });
+
+  const { data: currencies = [] } = useQuery<{ code: string; name: string }[], Error>({
+    queryKey: ["currencies"],
+    queryFn: () => apiClient.getCurrencies(),
   });
 
   const createAccountMutation = useMutation<

@@ -14,28 +14,39 @@ class GmailService:
         "openid"
     ]
 
-    def __init__(self, user):
-        self.user = user
+    def __init__(self, gmail_account=None, user=None):
+        if gmail_account:
+            self.gmail_account = gmail_account
+            self.user = gmail_account.user
+        elif user:
+            self.user = user
+            # Get first active account for backward compatibility
+            from ..models import GmailAccount
+            self.gmail_account = GmailAccount.objects.filter(
+                user=user, is_active=True
+            ).first()
+        else:
+            raise ValueError("Either gmail_account or user must be provided")
+
         self.creds = self._get_credentials()
 
     def _get_credentials(self):
         """Retrieve and refresh Google OAuth credentials from the database."""
-        try:
-            from ..models import GoogleAccount
-            google_account = GoogleAccount.objects.get(user=self.user)
-        except GoogleAccount.DoesNotExist:
-            print(f"No GoogleAccount found for user {self.user.id}")
+        if not self.gmail_account:
+            print(f"No Gmail account available for user {self.user.id}")
             return None
 
+        gmail_account = self.gmail_account
+
         # Check if we have necessary tokens
-        if not google_account.refresh_token:
+        if not gmail_account.refresh_token:
             print(f"No valid refresh token for user {self.user.id}")
             return None
 
         # Create credentials object from stored tokens
         creds = Credentials(
-            token=google_account.access_token,
-            refresh_token=google_account.refresh_token,
+            token=gmail_account.access_token,
+            refresh_token=gmail_account.refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
             client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
             client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
@@ -43,12 +54,12 @@ class GmailService:
         )
 
         # Set expiry if available (ensure timezone awareness)
-        if google_account.expires_at:
+        if gmail_account.expires_at:
             # Convert to UTC timezone-aware datetime for Google OAuth library compatibility
-            if timezone.is_naive(google_account.expires_at):
-                expiry_aware = timezone.make_aware(google_account.expires_at)
+            if timezone.is_naive(gmail_account.expires_at):
+                expiry_aware = timezone.make_aware(gmail_account.expires_at)
             else:
-                expiry_aware = google_account.expires_at
+                expiry_aware = gmail_account.expires_at
 
             # Convert to UTC and make timezone-naive for Google OAuth library
             # The Google library expects timezone-naive UTC datetimes
@@ -61,27 +72,27 @@ class GmailService:
                     creds.refresh(Request())
 
                     # Update stored tokens in database
-                    google_account.access_token = creds.token
+                    gmail_account.access_token = creds.token
                     if creds.expiry:
                         # Google OAuth library returns timezone-naive UTC datetime
                         # Convert to timezone-aware UTC for Django model
                         if timezone.is_naive(creds.expiry):
                             # Assume UTC timezone for naive datetime from Google
                             expiry_utc = creds.expiry.replace(tzinfo=datetime.timezone.utc)
-                            google_account.expires_at = expiry_utc
+                            gmail_account.expires_at = expiry_utc
                         else:
-                            google_account.expires_at = creds.expiry
-                    google_account.save()
+                            gmail_account.expires_at = creds.expiry
+                    gmail_account.save()
 
                     print(f"Refreshed OAuth tokens for user {self.user.id}")
                 except Exception as e:
                     print(f"Failed to refresh OAuth tokens for user {self.user.id}: {e}")
                     # Mark account as needing re-authorization
-                    from ..models import GoogleAccount
+                    from ..models import GmailAccount
                     try:
-                        google_account = GoogleAccount.objects.get(user=self.user)
-                        google_account.access_token = ""
-                        google_account.save()
+                        gmail_account = GmailAccount.objects.get(user=self.user, is_active=True)
+                        gmail_account.access_token = ""
+                        gmail_account.save()
                     except Exception:
                         pass
                     return None
@@ -91,7 +102,7 @@ class GmailService:
 
         return creds
 
-    def list_messages(self, query="in:inbox", max_results=10):
+    def list_messages(self, query="in:inbox", max_results=10, page_token=None):
         if not self.creds:
             raise Exception("Google credentials not available for user.")
 
@@ -99,11 +110,12 @@ class GmailService:
         results = (
             service.users()
             .messages()
-            .list(userId="me", q=query, maxResults=max_results)
+            .list(userId="me", q=query, maxResults=max_results, pageToken=page_token)
             .execute()
         )
         messages = results.get("messages", [])
-        return messages
+        next_page_token = results.get("nextPageToken")
+        return messages, next_page_token
 
     def get_message(self, msg_id):
         if not self.creds:

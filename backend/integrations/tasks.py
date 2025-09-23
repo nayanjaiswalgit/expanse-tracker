@@ -1,16 +1,11 @@
 from celery import shared_task
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from integrations.models import GoogleAccount
-from integrations.services.gmail_service import GmailService
-from bs4 import BeautifulSoup
-import base64
-import re
-from datetime import datetime
-from finance.models.transactions import Transaction
-from ai.ai_service import ai_service
+from integrations.models import GmailAccount
+from integrations.services.email_sync_service import EmailSyncService
 import logging
-import json
+
+from django.conf import settings
 
 User = get_user_model()
 
@@ -19,128 +14,41 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
+def sync_gmail_account(account_id):
+    """Sync emails for a specific Gmail account"""
+    try:
+        gmail_account = GmailAccount.objects.get(id=account_id, is_active=True)
+        sync_service = EmailSyncService()
+        limit = settings.EMAIL_FETCH_LIMIT
+        result = sync_service.sync_account_emails(gmail_account, limit=limit)
+
+        logger.info(f"Email sync completed for account {account_id}: {result}")
+        return result
+    except GmailAccount.DoesNotExist:
+        logger.error(f"Gmail account {account_id} not found or inactive")
+        return {"error": "Account not found or inactive"}
+    except Exception as e:
+        logger.error(f"Error syncing Gmail account {account_id}: {str(e)}")
+        return {"error": str(e)}
+
+
+@shared_task
 def fetch_emails_from_gmail(user_id):
+    """Fetch emails for a user (backward compatibility)"""
     try:
         user = User.objects.get(id=user_id)
-        google_account = GoogleAccount.objects.get(user=user)
+        # Get first active Gmail account for the user
+        gmail_account = GmailAccount.objects.filter(user=user, is_active=True).first()
+
+        if not gmail_account:
+            logger.warning(f"No active Gmail account found for user {user_id}")
+            return {"error": "No active Gmail account found"}
+
+        return sync_gmail_account.delay(gmail_account.id)
+
     except User.DoesNotExist:
         logger.error(f"User not found for user_id: {user_id}")
-        return
-    except GoogleAccount.DoesNotExist:
-        logger.warning(f"GoogleAccount not found for user_id: {user_id}. User needs to connect Gmail account.")
-        return
-
-    # Check if we have a refresh token before attempting to use Gmail service
-    if not google_account.refresh_token:
-        logger.warning(f"No refresh token for user_id: {user_id}. User needs to reconnect Gmail account.")
-        return
-
-    gmail_service = GmailService(user)
-    if not gmail_service.creds:
-        logger.warning(f"No valid Gmail credentials for user_id: {user_id}")
-        logger.info(f"User {user.username} needs to reconnect their Gmail account through the UI.")
-        # Mark the Google account as needing re-authorization if it exists
-        try:
-            google_account.access_token = ""
-            google_account.save()
-            logger.info(f"Marked Google account for user {user_id} as needing re-authorization")
-        except Exception as e:
-            logger.error(f"Failed to update Google account status: {e}")
-        return
-
-    logger.info(f"Fetching emails for user {user.username} at {timezone.now()}")
-
-    # Construct Gmail API query based on user's filter preferences
-    query_parts = []
-    if google_account.email_filter_senders:
-        senders_query = " OR ".join(
-            [f"from:{s}" for s in google_account.email_filter_senders]
-        )
-        query_parts.append(f"({senders_query})")
-    if google_account.email_filter_keywords:
-        keywords_query = " OR ".join(google_account.email_filter_keywords)
-        query_parts.append(f"({keywords_query})")
-
-    # Add a default query to only fetch unread messages, or adjust as needed
-    # query_parts.append("is:unread")
-
-    # Combine all query parts
-    gmail_query = " ".join(query_parts) if query_parts else ""
-
-    logger.info(f"Gmail API query: {gmail_query}")
-
-    messages = gmail_service.list_messages(query=gmail_query)
-
-    if not messages:
-        logger.info(f"No new emails found for user {user.username} with query: {gmail_query}")
-        return
-
-    for message in messages:
-        msg_id = message["id"]
-        msg_details = gmail_service.get_message(msg_id)
-
-        # Extract email body
-        payload = msg_details["payload"]
-        parts = payload.get("parts")
-        body_data = ""
-
-        if parts:
-            for part in parts:
-                if part["mimeType"] == "text/plain":
-                    body_data = part["body"]["data"]
-                    break
-                elif part["mimeType"] == "text/html":
-                    body_data = part["body"]["data"]
-                    break
-        elif payload["body"] and payload["body"]["data"]:
-            body_data = payload["body"]["data"]
-
-        if body_data:
-            # Decode base64 and parse with BeautifulSoup
-            decoded_body = base64.urlsafe_b64decode(body_data).decode("utf-8")
-            soup = BeautifulSoup(decoded_body, "html.parser")
-            text_content = soup.get_text()
-
-            # Try enhanced parsing with multiple patterns and AI fallback
-            extraction_result = extract_transaction_data(user, text_content, msg_id)
-
-            extracted_amount = extraction_result.get('amount')
-            extracted_vendor = extraction_result.get('vendor', 'Unknown Vendor')
-            extracted_date = extraction_result.get('date')
-
-            logger.debug(f"Message {msg_id} - Amount: {extracted_amount}, Vendor: {extracted_vendor}, Date: {extracted_date}")
-
-            if extracted_amount and extracted_date:
-                try:
-                    # Convert extracted_date string to datetime object
-                    transaction_date = datetime.strptime(
-                        extracted_date, "%b %d, %Y"
-                    ).date()
-
-                    # Check for duplicate transaction
-                    if Transaction.objects.filter(gmail_message_id=msg_id).exists():
-                        logger.info(
-                            f"Duplicate transaction found for Gmail message ID: {msg_id}. Skipping."
-                        )
-                        continue
-
-                    Transaction.objects.create(
-                        user=user,
-                        amount=extracted_amount,
-                        description=f"Expense from {extracted_vendor} via Gmail",
-                        transaction_date=transaction_date,
-                        gmail_message_id=msg_id,
-                        # category= # TODO: Implement category detection
-                    )
-                    logger.info(
-                        f"Successfully created transaction for {user.username}: {extracted_amount} from {extracted_vendor}"
-                    )
-                except Exception as e:
-                    logger.error(f"Error creating transaction for message {msg_id}: {e}")
-            else:
-                logger.warning(
-                    f"Could not extract sufficient data to create a transaction from message ID: {msg_id}"
-                )
+        return {"error": "User not found"}
 
 
 def extract_transaction_data(user, email_text, msg_id):
@@ -309,24 +217,33 @@ Return only valid JSON:
 
 
 @shared_task
-def sync_all_user_emails():
-    """Periodic task to sync emails for all users with Google accounts"""
-    from integrations.models import GoogleAccount
+def sync_all_gmail_accounts():
+    """Periodic task to sync emails for all active Gmail accounts"""
+    active_accounts = GmailAccount.objects.filter(is_active=True)
 
-    # Only sync accounts that have refresh tokens
-    google_accounts = GoogleAccount.objects.filter(refresh_token__isnull=False).exclude(refresh_token='')
+    if not active_accounts.exists():
+        logger.info("No active Gmail accounts found for email sync")
+        return {"message": "No active accounts", "accounts_processed": 0}
 
-    if not google_accounts:
-        logger.info("No Google accounts with valid refresh tokens found for email sync")
-        return
+    logger.info(f"Starting email sync for {active_accounts.count()} active Gmail accounts")
 
-    logger.info(f"Starting email sync for {google_accounts.count()} users with valid refresh tokens")
+    results = {"accounts_processed": 0, "accounts_failed": 0}
 
-    for account in google_accounts:
+    for account in active_accounts:
         try:
-            logger.info(f"Triggering email sync for user {account.user.username} ({account.user.id})")
-            fetch_emails_from_gmail.delay(account.user.id)
+            logger.info(f"Triggering email sync for account {account.id} ({account.email})")
+            sync_gmail_account.delay(account.id)
+            results["accounts_processed"] += 1
         except Exception as e:
-            logger.error(f"Failed to trigger email sync for user {account.user.id}: {e}")
+            logger.error(f"Failed to trigger email sync for account {account.id}: {e}")
+            results["accounts_failed"] += 1
 
-    logger.info("Email sync tasks queued for all users")
+    logger.info(f"Email sync tasks queued: {results}")
+    return results
+
+
+# Keep old function for backward compatibility
+@shared_task
+def sync_all_user_emails():
+    """DEPRECATED: Use sync_all_gmail_accounts instead"""
+    return sync_all_gmail_accounts()
