@@ -72,13 +72,14 @@ export const GoalsForm = () => {
     try {
       await createGoalMutation.mutateAsync({
         ...data,
-        target_amount: parseFloat(data.target_amount),
-        current_amount: parseFloat(data.current_amount || '0'),
+        target_amount: data.target_amount,
+        current_amount: data.current_amount || '0',
       });
       setShowAddModal(false);
       showSuccess('Goal created successfully!');
     } catch (error: any) {
-      showError(error.message || 'Failed to create goal');
+      console.error('Goal creation error:', error);
+      showError(error.response?.data?.detail || error.message || 'Failed to create goal');
     }
   };
 
@@ -89,13 +90,14 @@ export const GoalsForm = () => {
       await updateGoalMutation.mutateAsync({
         id: editingGoal.id,
         ...data,
-        target_amount: parseFloat(data.target_amount),
-        current_amount: parseFloat(data.current_amount || '0'),
+        target_amount: data.target_amount,
+        current_amount: data.current_amount || '0',
       });
       setEditingGoal(null);
       showSuccess('Goal updated successfully!');
     } catch (error: any) {
-      showError(error.message || 'Failed to update goal');
+      console.error('Goal update error:', error);
+      showError(error.response?.data?.detail || error.message || 'Failed to update goal');
     }
   };
 
