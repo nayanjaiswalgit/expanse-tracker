@@ -38,7 +38,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           >
             <div className="flex items-center justify-between">
               <div>
-                <div className={`text-sm font-bold ${textColor}`}>
+                <div className={`text-lg font-bold ${textColor}`}>
                   {card.value}
                 </div>
                 <div className={`text-xs ${textColor.replace('text-', 'text-').replace('-400', '-200').replace('-300', '-200')}`}>
