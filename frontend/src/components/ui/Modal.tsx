@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { FormProvider, useFormContext } from "../../contexts/FormContext";
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,23 +10,45 @@ interface ModalProps {
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
   closeOnBackdrop?: boolean;
+  preventCloseOnUnsavedChanges?: boolean;
 }
 
-export const Modal = ({
+const ModalContent = ({
   isOpen,
   onClose,
   title,
   children,
   size = "lg",
   closeOnBackdrop = true,
+  preventCloseOnUnsavedChanges = true,
 }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const { isDirty, resetFormState } = useFormContext();
+
+  const hasUnsavedChanges = preventCloseOnUnsavedChanges && isDirty;
+
+  // Reset form state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      resetFormState();
+    }
+  }, [isOpen, resetFormState]);
 
   // Handle ESC key press
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
-        onClose();
+        if (preventCloseOnUnsavedChanges && hasUnsavedChanges) {
+          // Show confirmation dialog or prevent close
+          const shouldClose = window.confirm(
+            "You have unsaved changes. Are you sure you want to close without saving?"
+          );
+          if (shouldClose) {
+            onClose();
+          }
+        } else {
+          onClose();
+        }
       }
     };
 
@@ -38,7 +61,7 @@ export const Modal = ({
       document.removeEventListener("keydown", handleEscKey);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, preventCloseOnUnsavedChanges, hasUnsavedChanges]);
 
   // Focus management
   useEffect(() => {
@@ -57,6 +80,34 @@ export const Modal = ({
     if (closeOnBackdrop && e.target === e.currentTarget) {
       e.preventDefault();
       e.stopPropagation();
+
+      if (preventCloseOnUnsavedChanges && hasUnsavedChanges) {
+        // Show confirmation dialog before closing
+        const shouldClose = window.confirm(
+          "You have unsaved changes. Are you sure you want to close without saving?"
+        );
+        if (shouldClose) {
+          onClose();
+        }
+      } else {
+        onClose();
+      }
+    }
+  };
+
+  const handleCloseButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (preventCloseOnUnsavedChanges && hasUnsavedChanges) {
+      // Show confirmation dialog before closing
+      const shouldClose = window.confirm(
+        "You have unsaved changes. Are you sure you want to close without saving?"
+      );
+      if (shouldClose) {
+        onClose();
+      }
+    } else {
       onClose();
     }
   };
@@ -83,7 +134,7 @@ export const Modal = ({
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
           <button
-            onClick={onClose}
+            onClick={handleCloseButtonClick}
             className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
             aria-label="Close modal"
           >
@@ -98,6 +149,14 @@ export const Modal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+export const Modal = (props: ModalProps) => {
+  return (
+    <FormProvider>
+      <ModalContent {...props} />
+    </FormProvider>
   );
 };
 

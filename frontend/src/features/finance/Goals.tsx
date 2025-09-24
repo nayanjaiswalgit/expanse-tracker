@@ -20,11 +20,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import { formatCurrency } from '../../utils/preferences';
 import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { ColorPickerButton } from '../../components/ui/ColorPickerButton';
 import { Select } from '../../components/ui/Select';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { SummaryCards } from '../../components/ui/SummaryCards';
+import { FinancePageHeader } from '../../components/ui/FinancePageHeader';
 import type { Goal } from '../types';
 
 interface GoalFormData {
@@ -243,44 +246,67 @@ export const Goals = () => {
   const otherGoals = goals.filter(goal => !['active', 'completed'].includes(goal.status));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-3xl lg:text-4xl font-bold mb-2">🎯 Your Financial Goals</h1>
-            <p className="text-purple-100 text-lg">Set, track, and achieve your financial milestones.</p>
-            <div className="mt-4 flex items-center space-x-6 text-sm">
-              <div className="flex items-center">
-                <Target className="w-5 h-5 mr-2" />
-                <span>{goals.length} total goals</span>
-              </div>
-              {showAmounts && (
-                <div className="flex items-center">
-                  <DollarSign className="w-5 h-5 mr-2" />
-                  <span>Total Target: {formatCurrency(goals.reduce((sum, goal) => sum + parseFloat(goal.target_amount), 0), authState.user)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-6 lg:mt-0 flex items-center space-x-3">
-            <button
-              onClick={() => setShowAmounts(!showAmounts)}
-              className="flex items-center px-4 py-2 bg-white/20 dark:bg-gray-800/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 dark:hover:bg-gray-800/30 transition-colors text-sm border border-white/30 dark:border-gray-600/30"
-            >
-              {showAmounts ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-              {showAmounts ? 'Hide' : 'Show'} Amounts
-            </button>
-            <button
-              onClick={handleAddGoal}
-              className="flex items-center px-6 py-2 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm shadow-md border border-gray-200 dark:border-gray-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Goal
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <FinancePageHeader
+        title="🎯 Financial Goals"
+        subtitle="Set, track, and achieve your financial milestones"
+        gradientFrom="emerald-600"
+        gradientVia="teal-600"
+        gradientTo="cyan-700"
+        darkGradientFrom="emerald-800"
+        darkGradientVia="teal-800"
+        darkGradientTo="cyan-900"
+        subtitleColor="text-emerald-100"
+        darkSubtitleColor="text-emerald-200"
+        summaryCards={[
+          {
+            id: 'total',
+            label: 'Total',
+            value: goals.length,
+            icon: Target,
+            iconColor: 'text-emerald-300 dark:text-emerald-400'
+          },
+          {
+            id: 'active',
+            label: 'Active',
+            value: activeGoals.length,
+            icon: CheckCircle,
+            iconColor: 'text-green-300 dark:text-green-400'
+          },
+          {
+            id: 'completed',
+            label: 'Done',
+            value: completedGoals.length,
+            icon: TrendingUp,
+            iconColor: 'text-cyan-300 dark:text-cyan-400'
+          },
+          {
+            id: 'target',
+            label: showAmounts ? 'Target' : 'Hidden',
+            value: showAmounts
+              ? formatCurrency(goals.reduce((sum, goal) => sum + parseFloat(goal.target_amount), 0), authState.user)
+              : '••••',
+            icon: showAmounts ? DollarSign : EyeOff,
+            iconColor: showAmounts ? 'text-yellow-300 dark:text-yellow-400' : 'text-gray-300 dark:text-gray-400'
+          }
+        ]}
+        buttons={[
+          {
+            label: showAmounts ? 'Hide Amounts' : 'Show Amounts',
+            icon: showAmounts ? EyeOff : Eye,
+            onClick: () => setShowAmounts(!showAmounts),
+            variant: 'ghost-white',
+            className: 'bg-white/20 hover:bg-white/30 text-white border border-white/30 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/20'
+          },
+          {
+            label: 'Add Goal',
+            icon: Plus,
+            onClick: handleAddGoal,
+            variant: 'primary',
+            className: 'bg-white text-emerald-600 hover:bg-gray-100 dark:bg-white dark:text-emerald-700 dark:hover:bg-gray-200 shadow-lg'
+          }
+        ]}
+      />
 
       {/* Goals Loading */}
       {goalsQuery.isLoading ? (
@@ -303,102 +329,104 @@ export const Goals = () => {
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Active Goals */}
           {activeGoals.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold text-secondary-900 dark:text-secondary-100 mb-4">Active Goals ({activeGoals.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <h2 className="text-lg font-semibold text-secondary-900 dark:text-secondary-100 mb-3">Active Goals ({activeGoals.length})</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeGoals.map((goal) => {
                   const IconComponent = getGoalIcon(goal.goal_type);
                   const colorClass = goalTypeColors[goal.goal_type as keyof typeof goalTypeColors];
                   const progressPercent = Math.min(goal.progress_percentage, 100);
                   
                   return (
-                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={`p-2 rounded-lg ${colorClass}`}>
+                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className={`p-2 rounded-xl ${colorClass}`}>
                           <IconComponent className="h-5 w-5" />
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-0.5">
                           <button
                             onClick={() => {
                               setProgressGoal(goal);
                               setProgressAmount(goal.current_amount);
                               setShowProgressModal(true);
                             }}
-                            className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
                             title="Update progress"
                           >
-                            <Target className="h-4 w-4" />
+                            <Target className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleEditGoal(goal)}
-                            className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                             title="Edit goal"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleToggleStatus(goal, 'paused')}
-                            className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 rounded-lg transition-colors"
                             title="Pause goal"
                           >
-                            <Pause className="h-4 w-4" />
+                            <Pause className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteGoal(goal)}
-                            className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                             title="Delete goal"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         <div>
-                          <h3 className="font-semibold text-lg text-secondary-900 dark:text-secondary-100">{goal.name}</h3>
-                          <p className="text-sm text-secondary-600 dark:text-secondary-400">{getGoalTypeLabel(goal.goal_type)}</p>
+                          <h3 className="font-semibold text-base text-gray-900 dark:text-white">{goal.name}</h3>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">{getGoalTypeLabel(goal.goal_type)}</p>
                           {goal.description && (
-                            <p className="text-sm text-secondary-500 dark:text-secondary-400 mt-1">{goal.description}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">{goal.description}</p>
                           )}
                         </div>
 
                         {/* Progress Bar */}
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-secondary-600 dark:text-secondary-400">Progress</span>
-                            <span className="text-sm font-medium text-secondary-900 dark:text-secondary-100">
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Progress</span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md">
                               {progressPercent.toFixed(1)}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-3">
-                            <ProgressBar
-                              percentage={progressPercent}
-                              className="h-3 rounded-full transition-all duration-500"
-                              style={{ backgroundColor: goal.color }}
+                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                            <div
+                              className="h-2.5 rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-emerald-500 to-teal-500"
+                              style={{
+                                width: `${progressPercent}%`,
+                                backgroundColor: goal.color || '#10B981'
+                              }}
                             />
                           </div>
                         </div>
 
                         {showAmounts && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-secondary-600 dark:text-secondary-400">Current:</span>
-                              <span className="font-medium">
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-600 dark:text-gray-300">Current:</span>
+                              <span className="font-medium text-gray-900 dark:text-white">
                                 {formatCurrency(parseFloat(goal.current_amount), authState.user)}
                               </span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-secondary-600 dark:text-secondary-400">Target:</span>
-                              <span className="font-medium">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-600 dark:text-gray-300">Target:</span>
+                              <span className="font-medium text-gray-900 dark:text-white">
                                 {formatCurrency(parseFloat(goal.target_amount), authState.user)}
                               </span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-secondary-600 dark:text-secondary-400">Remaining:</span>
-                              <span className="font-medium text-blue-600">
+                            <div className="flex justify-between text-xs border-t border-gray-200 dark:border-gray-600 pt-1.5">
+                              <span className="text-gray-600 dark:text-gray-300">Remaining:</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                 {formatCurrency(parseFloat(goal.remaining_amount), authState.user)}
                               </span>
                             </div>
@@ -406,16 +434,19 @@ export const Goals = () => {
                         )}
 
                         {goal.target_date && (
-                          <div className="flex items-center text-sm text-secondary-600 dark:text-secondary-400">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            Target: {new Date(goal.target_date).toLocaleDateString()}
+                          <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+                            <Calendar className="h-3 w-3 mr-1.5 text-gray-500" />
+                            <span>Target: {new Date(goal.target_date).toLocaleDateString()}</span>
                           </div>
                         )}
 
-                        <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[goal.status]}`}>
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-700">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-md ${statusColors[goal.status]}`}>
                             {goal.status.charAt(0).toUpperCase() + goal.status.slice(1)}
                           </span>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {goal.goal_type.charAt(0).toUpperCase() + goal.goal_type.slice(1).replace('_', ' ')}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -428,38 +459,38 @@ export const Goals = () => {
           {/* Completed Goals */}
           {completedGoals.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold text-secondary-900 dark:text-secondary-100 mb-4">Completed Goals ({completedGoals.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <h2 className="text-lg font-semibold text-secondary-900 dark:text-secondary-100 mb-3">Completed Goals ({completedGoals.length})</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {completedGoals.map((goal) => {
                   return (
-                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-green-200 p-6 shadow-lg opacity-90">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="p-2 rounded-lg bg-green-100 text-green-600">
+                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-green-200 dark:border-green-800 p-4 shadow-md opacity-95">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="p-2 rounded-xl bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400">
                           <CheckCircle className="h-5 w-5" />
                         </div>
-                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                        <span className="text-xs font-medium text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-md">
                           Completed
                         </span>
                       </div>
 
                       <div className="space-y-3">
                         <div>
-                          <h3 className="font-semibold text-lg text-secondary-900 dark:text-secondary-100">{goal.name}</h3>
-                          <p className="text-sm text-secondary-600 dark:text-secondary-400">{getGoalTypeLabel(goal.goal_type)}</p>
+                          <h3 className="font-semibold text-base text-gray-900 dark:text-white">{goal.name}</h3>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">{getGoalTypeLabel(goal.goal_type)}</p>
                         </div>
 
                         {showAmounts && (
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-green-600">
+                          <div className="text-center bg-green-50 dark:bg-green-900/20 rounded-xl p-3">
+                            <p className="text-lg font-bold text-green-600 dark:text-green-400">
                               {formatCurrency(parseFloat(goal.target_amount), authState.user)}
                             </p>
-                            <p className="text-sm text-secondary-600 dark:text-secondary-400">Goal Achieved!</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">Goal Achieved! 🎉</p>
                           </div>
                         )}
 
                         {goal.completed_date && (
                           <div className="text-center">
-                            <p className="text-xs text-secondary-500 dark:text-secondary-400">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               Completed on {new Date(goal.completed_date).toLocaleDateString()}
                             </p>
                           </div>

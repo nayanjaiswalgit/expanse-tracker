@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FieldValues } from 'react-hook-form';
 import { FormConfig } from '../../types/forms';
 import { useObjectForm } from '../../hooks/useObjectForm';
 import { FormField } from './FormField';
 import { Button } from '../ui/Button';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useFormContext } from '../../contexts/FormContext';
 import clsx from 'clsx';
 
 interface ObjectFormProps<T extends FieldValues> {
@@ -18,15 +19,28 @@ export function ObjectForm<T extends FieldValues>({
 }: ObjectFormProps<T>) {
   const { form, isLoading, submit, getFieldError, isFieldVisible } = useObjectForm(config);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const { setFormDirty } = useFormContext();
 
   const {
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = form;
+
+  // Update form context when form dirty state changes
+  useEffect(() => {
+    setFormDirty(isDirty);
+  }, [isDirty, setFormDirty]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await submit();
+    try {
+      await submit();
+      // Reset form dirty state on successful submission
+      setFormDirty(false);
+    } catch (error) {
+      // Keep form as dirty on error so user doesn't lose changes
+      console.error('Form submission error:', error);
+    }
   };
 
   const layoutClasses = {

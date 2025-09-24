@@ -17,6 +17,7 @@ import { AccountsManagement } from './features/finance/AccountsManagement';
 import { Goals } from './features/finance/Goals';
 import { LendingTracker } from './features/finance/LendingTracker';
 import { GroupExpenses } from './features/finance/GroupExpenses';
+import ExpenseTracker from './features/finance/ExpenseTracker';
 import GmailCallback from './features/auth/GmailCallback';
 import { Settings } from './features/settings/Settings';
 import { UploadHistory } from './features/finance/UploadHistory';
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
                             { path: 'accounts', element: <AccountsManagement /> },
                             { path: 'subscriptions', element: <Navigate to="/settings" replace /> },
                             { path: 'goals', element: <Goals /> },
+                            { path: 'expenses', element: <ExpenseTracker /> },
                             { path: 'lending', element: <LendingTracker /> },
                             { path: 'group-expenses', element: <GroupExpenses /> },
                             { path: 'gmail-callback', element: <GmailCallback /> },
@@ -71,7 +73,7 @@ const router = createBrowserRouter([
                             { path: 'recurring-investments', element: <RecurringInvestments /> },
                             // Old routes redirects
                             { path: 'upload', element: <Navigate to="/accounts" replace /> },
-                            { path: 'social', element: <Navigate to="/lending" replace /> },
+                            { path: 'social', element: <Navigate to="/expenses" replace /> },
                             { path: 'invoices', element: <Navigate to="/accounts" replace /> },
                             { path: 'gmail', element: <Navigate to="/settings" replace /> },
                             { path: 'telegram', element: <Navigate to="/settings" replace /> },

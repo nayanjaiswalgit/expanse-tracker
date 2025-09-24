@@ -13,6 +13,8 @@ import {
   Upload as UploadIcon,
   FileText,
 } from "lucide-react";
+import { SummaryCards } from "../../components/ui/SummaryCards";
+import { FinancePageHeader } from "../../components/ui/FinancePageHeader";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency } from "../../utils/preferences";
 import { Modal } from "../../components/ui/Modal";
@@ -194,61 +196,70 @@ export const AccountsManagement = () => {
   }, {} as Record<string, Account[]>);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl p-6 text-white">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-3xl lg:text-4xl font-bold mb-2">
-              Accounts & Statements
-            </h1>
-            <p className="text-blue-100 text-lg">
-              Manage your accounts and upload bank statements
-            </p>
-            <div className="mt-4 flex items-center space-x-6 text-sm">
-              <div className="flex items-center">
-                <Building className="w-5 h-5 mr-2" />
-                <span>{accounts.length} accounts</span>
-              </div>
-              {showBalances && (
-                <div className="flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2" />
-                  <span>
-                    Total: {formatCurrency(totalBalance, authState.user)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-6 lg:mt-0 flex items-center space-x-3">
-            <Button
-              onClick={() => setShowBalances(!showBalances)}
-              variant="ghost-white"
-              size="sm"
-            >
-              {showBalances ? (
-                <EyeOff className="w-4 h-4 mr-2" />
-              ) : (
-                <Eye className="w-4 h-4 mr-2" />
-              )}
-              {showBalances ? "Hide" : "Show"} Balances
-            </Button>
-            <Button
-              onClick={() => setShowAddModal(true)}
-              variant="primary"
-              size="sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Account
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <FinancePageHeader
+        title="💳 Accounts & Statements"
+        subtitle="Manage your accounts and upload bank statements"
+        gradientFrom="blue-600"
+        gradientVia="indigo-600"
+        gradientTo="purple-700"
+        darkGradientFrom="blue-800"
+        darkGradientVia="indigo-800"
+        darkGradientTo="purple-900"
+        subtitleColor="text-blue-100"
+        darkSubtitleColor="text-blue-200"
+        summaryCards={[
+          {
+            id: 'total',
+            label: 'Total',
+            value: accounts.length,
+            icon: Building,
+            iconColor: 'text-blue-300 dark:text-blue-400'
+          },
+          {
+            id: 'active',
+            label: 'Active',
+            value: accounts.filter(acc => acc.is_active !== false).length,
+            icon: CreditCard,
+            iconColor: 'text-indigo-300 dark:text-indigo-400'
+          },
+          {
+            id: 'types',
+            label: 'Types',
+            value: Object.keys(accountTypeGroups).length,
+            icon: Wallet,
+            iconColor: 'text-purple-300 dark:text-purple-400'
+          },
+          {
+            id: 'balance',
+            label: showBalances ? 'Balance' : 'Hidden',
+            value: showBalances ? formatCurrency(totalBalance, authState.user) : '••••',
+            icon: showBalances ? TrendingUp : EyeOff,
+            iconColor: showBalances ? 'text-green-300 dark:text-green-400' : 'text-gray-300 dark:text-gray-400'
+          }
+        ]}
+        buttons={[
+          {
+            label: showBalances ? 'Hide Balances' : 'Show Balances',
+            icon: showBalances ? EyeOff : Eye,
+            onClick: () => setShowBalances(!showBalances),
+            variant: 'ghost-white',
+            className: 'bg-white/20 hover:bg-white/30 text-white border border-white/30 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/20'
+          },
+          {
+            label: 'Add Account',
+            icon: Plus,
+            onClick: () => setShowAddModal(true),
+            variant: 'primary',
+            className: 'bg-white text-blue-600 hover:bg-gray-100 dark:bg-white dark:text-blue-700 dark:hover:bg-gray-200 shadow-lg'
+          }
+        ]}
+      />
 
       {/* Content */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Account Summary Cards - Now Clickable Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {Object.entries(accountTypeGroups).map(([type, groupedAccounts]) => {
             const Icon =
               accountTypeIcons[type as keyof typeof accountTypeIcons];
@@ -272,13 +283,13 @@ export const AccountsManagement = () => {
                     setSelectedTagFilter(null); // Clear tag filter when account filter is applied
                   }
                 }}
-                className={`p-4 rounded-xl shadow-md text-left transition-all duration-200 hover:shadow-lg transform hover:scale-105 ${
+                className={`p-4 rounded-2xl shadow-md text-left transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 ${
                   isFiltered
                     ? `${
                         accountTypeColors[
                           type as keyof typeof accountTypeColors
                         ]
-                      } ring-2 ring-blue-500 shadow-lg`
+                      } ring-2 ring-blue-500 dark:ring-blue-400 shadow-xl scale-105`
                     : `${
                         accountTypeColors[
                           type as keyof typeof accountTypeColors
@@ -287,16 +298,16 @@ export const AccountsManagement = () => {
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <Icon className="w-6 h-6" />
-                  <span className="text-sm font-semibold">
+                  <Icon className="w-5 h-5" />
+                  <span className="text-xs font-semibold">
                     {groupedAccounts.length}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold capitalize mb-1">
+                <h3 className="text-base font-bold capitalize mb-1">
                   {type.replace("_", " ")}
                 </h3>
                 {showBalances && (
-                  <p className="text-xl font-bold">
+                  <p className="text-lg font-bold">
                     {formatCurrency(total, authState.user)}
                   </p>
                 )}

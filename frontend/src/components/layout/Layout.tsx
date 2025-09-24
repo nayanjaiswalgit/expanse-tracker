@@ -25,9 +25,7 @@ export const Layout = () => {
     { path: '/transactions', name: 'Operations', icon: FolderOpen },
     { path: '/accounts', name: 'Accounts & Statements', icon: CreditCard },
     { path: '/goals', name: 'Goals', icon: Target },
-    { path: '/group-expenses', name: 'Group Expenses', icon: Receipt },
-    { path: '/lending', name: 'Personal Lending', icon: HandHeart },
-    { path: '/social', name: 'Social Finance', icon: Users },
+    { path: '/expenses', name: 'Expense Tracker', icon: Receipt },
     { path: '/settings', name: 'Settings', icon: Settings },
   ];
 
