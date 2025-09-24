@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency } from '../../utils/preferences';
 import {
   usePortfolio,
   useGmailAccounts,
@@ -120,12 +121,6 @@ const InvestmentTracker: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
 
   const formatPercent = (percent: number) => {
     return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
@@ -173,7 +168,7 @@ const InvestmentTracker: React.FC = () => {
                 <DollarSign className="h-8 w-8 text-blue-500" />
                 <div className="ml-3">
                   <p className="text-2xl font-bold text-secondary-900 dark:text-secondary-100">
-                    {formatCurrency(portfolioSummary.total_value)}
+                    {formatCurrency(portfolioSummary.total_value, authState.user)}
                   </p>
                   <p className="text-sm text-secondary-600 dark:text-secondary-400">Total Value</p>
                 </div>
@@ -193,7 +188,7 @@ const InvestmentTracker: React.FC = () => {
                   <p className={`text-2xl font-bold ${
                     portfolioSummary.total_gain_loss >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {formatCurrency(portfolioSummary.total_gain_loss)}
+                    {formatCurrency(portfolioSummary.total_gain_loss, authState.user)}
                   </p>
                   <p className="text-sm text-secondary-600 dark:text-secondary-400">Gain/Loss</p>
                 </div>
@@ -223,7 +218,7 @@ const InvestmentTracker: React.FC = () => {
                 <DollarSign className="h-8 w-8 text-orange-500" />
                 <div className="ml-3">
                   <p className="text-2xl font-bold text-orange-600">
-                    {formatCurrency(portfolioSummary.total_dividends)}
+                    {formatCurrency(portfolioSummary.total_dividends, authState.user)}
                   </p>
                   <p className="text-sm text-secondary-600 dark:text-secondary-400">Dividends</p>
                 </div>
@@ -309,15 +304,15 @@ const InvestmentTracker: React.FC = () => {
                             {investment.quantity.toFixed(2)}
                           </td>
                           <td className="py-3 text-right text-secondary-700 dark:text-secondary-300">
-                            {formatCurrency(investment.current_price)}
+                            {formatCurrency(investment.current_price, authState.user)}
                           </td>
                           <td className="py-3 text-right text-secondary-900 dark:text-secondary-100 font-medium">
-                            {formatCurrency(investment.current_value)}
+                            {formatCurrency(investment.current_value, authState.user)}
                           </td>
                           <td className={`py-3 text-right font-medium ${
                             investment.unrealized_gain >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {formatCurrency(investment.unrealized_gain)}
+                            {formatCurrency(investment.unrealized_gain, authState.user)}
                           </td>
                           <td className={`py-3 text-right font-medium ${
                             investment.unrealized_gain_percent >= 0 ? 'text-green-600' : 'text-red-600'
@@ -393,7 +388,7 @@ const InvestmentTracker: React.FC = () => {
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
                               <span className="text-secondary-600 dark:text-secondary-400">Amount:</span>
-                              <span className="ml-2 font-medium">{formatCurrency(transaction.investment_data.amount)}</span>
+                              <span className="ml-2 font-medium">{formatCurrency(transaction.investment_data.amount, authState.user)}</span>
                             </div>
                             <div>
                               <span className="text-secondary-600 dark:text-secondary-400">Quantity:</span>
@@ -401,7 +396,7 @@ const InvestmentTracker: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-secondary-600 dark:text-secondary-400">Price:</span>
-                              <span className="ml-2 font-medium">{formatCurrency(transaction.investment_data.price_per_share)}</span>
+                              <span className="ml-2 font-medium">{formatCurrency(transaction.investment_data.price_per_share, authState.user)}</span>
                             </div>
                             <div>
                               <span className="text-secondary-600 dark:text-secondary-400">Broker:</span>

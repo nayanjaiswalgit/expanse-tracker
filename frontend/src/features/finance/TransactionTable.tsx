@@ -255,7 +255,7 @@ export const TransactionTable = () => {
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center"
+        className="text-sm cursor-pointer hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center"
       >
         {value || <span className="theme-text-muted italic">{placeholder}</span>}
       </div>
@@ -275,15 +275,16 @@ export const TransactionTable = () => {
       return (
         <Select
           value={(editingData as Record<string, unknown>)[field] !== undefined ? (editingData as Record<string, unknown>)[field] as string : value as string || ''}
-          onChange={(e) => {
-            const newValue = e.target.value || undefined;
-            setEditingData(prev => ({ ...prev, [field]: newValue }));
-            saveField(transaction.id, field, newValue);
+          onChange={(newValue) => {
+            const processedValue = newValue || undefined;
+            setEditingData(prev => ({ ...prev, [field]: processedValue }));
+            saveField(transaction.id, field, processedValue);
           }}
-          onBlur={cancelEditing}
           options={options}
           placeholder={placeholder}
-          autoFocus
+          searchable={true}
+          allowClear={true}
+          className="min-w-[140px]"
         />
       );
     }
@@ -1236,7 +1237,7 @@ export const TransactionTable = () => {
                     headerGroup.headers.map(header => (
                       <th
                         key={header.id}
-                        className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         onClick={header.column.getToggleSortingHandler()}
                         style={{ width: header.getSize() }}
                       >
@@ -1289,7 +1290,7 @@ export const TransactionTable = () => {
                       `}
                     >
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        <td key={cell.id} className="px-4  whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}

@@ -75,6 +75,7 @@ export interface ValidationConfig {
 export interface FormConfig<T extends FieldValues> {
   schema: z.ZodSchema<T>;
   fields: FormFieldConfig[];
+  advancedFields?: FormFieldConfig[];
   layout?: FormLayout;
   submission: FormSubmissionConfig;
   validation?: ValidationConfig;

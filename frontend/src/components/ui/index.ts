@@ -14,5 +14,6 @@ export { Card } from './Card';
 export { Checkbox } from './Checkbox';
 export { CurrencyField } from './CurrencyField';
 export { Select } from './Select';
+export { SearchableSelect } from './SearchableSelect';
 // export { Table } from './Table';
 // export { Tooltip } from './Tooltip';

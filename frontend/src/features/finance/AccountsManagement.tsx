@@ -76,7 +76,16 @@ export const AccountsManagement = () => {
     Error,
     Omit<Account, "id" | "user_id" | "created_at" | "updated_at">
   >({
-    mutationFn: apiClient.createAccount,
+    mutationFn: async (accountData) => {
+      console.log('Mutation function called with:', accountData);
+      console.log('apiClient:', apiClient);
+      console.log('apiClient.createAccount:', apiClient.createAccount);
+
+      // Call the method with explicit binding
+      const result = await apiClient.createAccount.call(apiClient, accountData);
+      console.log('Account creation result:', result);
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       setShowAddModal(false);
@@ -126,12 +135,14 @@ export const AccountsManagement = () => {
       const accountData = {
         name: data.name,
         account_type: data.account_type,
-        balance: typeof data.balance === 'string' ? parseFloat(data.balance) : data.balance,
-        currency: data.currency,
+        balance: typeof data.balance === 'number' ? data.balance.toString() : data.balance.toString(),
+        currency: data.currency || 'USD',
         institution: data.institution || '',
-        description: data.description || '',
-        is_active: data.is_active,
+        account_number: data.account_number || '',
+        is_active: data.is_active !== false, // Default to true if undefined
       };
+
+      console.log('Sending account data to API:', accountData);
 
       let savedAccount;
       if (editingAccount) {
@@ -143,12 +154,12 @@ export const AccountsManagement = () => {
         savedAccount = await createAccountMutation.mutateAsync(accountData);
       }
 
-      // Handle tags separately (if needed in the future)
-      // Tags functionality would need to be implemented if required
+      console.log('Account saved successfully:', savedAccount);
 
       setShowAddModal(false);
       setEditingAccount(null);
     } catch (err: any) {
+      console.error('Error saving account:', err);
       throw new Error(err.message || "An error occurred while saving the account.");
     }
   };
@@ -568,10 +579,11 @@ export const AccountsManagement = () => {
               balance: editingAccount.balance,
               currency: editingAccount.currency,
               institution: editingAccount.institution || '',
-              description: editingAccount.description || '',
+              account_number: editingAccount.account_number || '',
               is_active: editingAccount.is_active !== false,
             } : {
               currency: currencies[0]?.code || 'USD',
+              is_active: true,
             },
             !!editingAccount,
             currencies

@@ -110,7 +110,7 @@ export const createPreferencesFormConfig = (
       name: 'preferred_currency',
       type: 'select',
       label: 'Default Currency',
-      options: currencies.map(currency => ({
+      options: currencies?.map(currency => ({
         value: currency.code,
         label: `${currency.symbol} ${currency.code} - ${currency.name}`
       })),

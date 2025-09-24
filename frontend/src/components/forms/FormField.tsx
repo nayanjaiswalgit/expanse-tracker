@@ -71,8 +71,11 @@ export function FormField<T extends FieldValues>({
           <Select
             {...commonProps}
             options={config.options || []}
-            multiple={config.multiple}
-            {...field}
+            value={field.value}
+            onChange={(value) => field.onChange(value)}
+            searchable={config.searchable !== false}
+            allowClear={config.allowClear !== false}
+            searchPlaceholder={config.searchPlaceholder || "Search options..."}
           />
         );
 

@@ -79,11 +79,11 @@ export const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900 dark:to-secondary-800 flex">
+    <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900 dark:to-secondary-800 flex p-6">
       {/* Skip to main content link for screen readers */}
       <a 
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 btn btn-primary px-4 py-2 rounded-md z-50 focus:z-[60]"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 btn btn-primary rounded-md z-50 focus:z-[60]"
       >
         Skip to main content
       </a>
@@ -469,7 +469,7 @@ export const Layout = () => {
         <motion.main 
           key={location.pathname}
           id="main-content" 
-          className="flex-1 p-6 lg:p-8 overflow-y-auto main-content"
+          className="flex-1 overflow-y-auto main-content"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}

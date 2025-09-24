@@ -223,7 +223,7 @@ export const Dashboard: React.FC = () => {
     const list = Array.isArray(allTransactions) ? allTransactions : (allTransactions.results || []);
     return list
       .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
+      .slice(0, 5); // Limit to 5 transactions for better dashboard layout
   }, [transactionsQuery.data]);
 
   const goals = (goalsQuery.data || []).slice(0, 3);
@@ -233,442 +233,548 @@ export const Dashboard: React.FC = () => {
   }
 
   const summary = summaryQuery.data;
+  const accounts = accountsQuery.data?.results || [];
+  const totalBalance = summary?.account_balances?.reduce((sum, acc) => sum + parseFloat(acc.balance), 0) ||
+                     accounts.reduce((sum, acc) => sum + parseFloat(acc.balance || '0'), 0) || 0;
+  const primaryAccount = accounts[0];
 
-  if (!summary) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-900 dark:text-secondary-100">Dashboard</h1>
-          <p className="text-secondary-600 dark:text-secondary-400">No data available</p>
-        </div>
-      </div>
-    );
-  }
+  // Get accounts with different types, excluding the primary account for "other accounts"
+  const otherAccounts = accounts.filter((acc, index) => index !== 0 && acc.is_active).slice(0, 4);
 
-  const totalBalance = parseFloat(summary.account_balances?.reduce((sum, acc) => sum + parseFloat(acc.balance), 0)?.toString() || '0') || 0;
-  const primaryAccount = (accountsQuery.data?.results || [])[0];
+  // Helper function to mask account number
+  const maskAccountNumber = (accountNumber: string | undefined): string => {
+    if (!accountNumber) return '•••• •••• •••• ••••';
+    if (accountNumber.length < 4) return '•••• •••• •••• ••••';
+    const lastFour = accountNumber.slice(-4);
+    return `•••• •••• •••• ${lastFour}`;
+  };
+
+  // Helper function to get account type display name
+  const getAccountTypeDisplay = (accountType: string): string => {
+    const typeMap: Record<string, string> = {
+      'checking': 'Checking',
+      'savings': 'Savings',
+      'credit': 'Credit Card',
+      'investment': 'Investment',
+      'loan': 'Loan',
+      'cash': 'Cash',
+      'other': 'Other'
+    };
+    return typeMap[accountType] || accountType;
+  };
+
+  // Use real transactions data, limit to 4 for better layout
+  const displayTransactions = recentTransactions.slice(0, 4);
+
+  // Helper function to truncate long text
+  const truncateText = (text: string | number | undefined | null, maxLength: number = 15): string => {
+    if (!text) return '';
+    const textStr = String(text);
+    if (textStr.length <= maxLength) return textStr;
+    return textStr.substring(0, maxLength) + '...';
+  };
+
+  // Use real goals data, limit to 3 for better layout
+  const displayGoals = goals.slice(0, 3);
 
   return (
-    <div className="space-y-6">
-      {/* Dashboard Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-700 dark:text-gray-200">Dashboard</h1>
-      </div>
-
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Left Column - Account Info */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          {/* Overall Balance */}
-          <div className="bg-white dark:bg-secondary-800 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Overall balance</span>
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Plus className="w-1 h-1 text-white" />
-                </div>
-                <button
-                  onClick={() => navigate('/accounts/new')}
-                  className="text-xs text-blue-500 hover:text-blue-600"
-                >
-                  Add new
-                </button>
-              </div>
-            </div>
-            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              {formatCurrency(totalBalance, authState.user)}
-            </div>
-
-            {/* Featured Account Card */}
-            {primaryAccount && (
-              <div className="mt-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl p-6 text-white">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="text-sm opacity-90 mb-1">Credit Card</div>
-                    <div className="text-lg font-semibold">
-                      {primaryAccount.name || 'Stefania Nord'}
-                    </div>
-                    <div className="text-sm opacity-75 mt-1">
-                      •••• •••• •••• {primaryAccount.account_number_last4 || '7899'}
-                    </div>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded text-sm font-bold">
-                    VISA
-                  </div>
-                </div>
-                <div className="flex justify-between items-end">
-                  <div className="text-sm opacity-75">
-                    {new Date().toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' })}
-                  </div>
-                  <div className="text-xl font-bold">
-                    {formatCurrency(parseFloat(primaryAccount.balance?.toString() || '0'), authState.user)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Other Accounts */}
-          <div className="bg-white dark:bg-secondary-800 rounded-lg p-6 shadow-sm">
-            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">Other accounts</h3>
-            <div className="space-y-4">
-              {(accountsQuery.data?.results || []).slice(1, 4).map((account) => (
-                <div key={account.id} className="flex justify-between items-center">
-                  <div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      •••• •••• •••• {account.account_number_last4 || '2305'}
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                      {account.account_type}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                      {formatCurrency(parseFloat(account.balance.toString()), authState.user)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <button className="text-sm text-blue-500 hover:text-blue-600">
-                Show more
-              </button>
-            </div>
-          </div>
-
-          {/* Goals */}
-          <div className="bg-white dark:bg-secondary-800 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Goals</h3>
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Plus className="w-1 h-1 text-white" />
-                </div>
-                <button
-                  onClick={() => navigate('/goals/new')}
-                  className="text-xs text-blue-500 hover:text-blue-600"
-                >
-                  Add new
-                </button>
-              </div>
-            </div>
-            <div className="space-y-4">
-              {goals.map((goal, index) => {
-                const progressPercentage = Math.min(Math.round((parseFloat(goal.current_amount) / parseFloat(goal.target_amount)) * 100), 100);
-                const emojis = ['🚗', '😍', '🏠'];
-
-                return (
-                  <div key={goal.id} className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative w-12 h-12">
-                        <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
-                          <path
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            fill="none"
-                            stroke="#e5e7eb"
-                            strokeWidth="2"
-                          />
-                          <path
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            fill="none"
-                            stroke={progressPercentage >= 70 ? '#10b981' : progressPercentage >= 50 ? '#f59e0b' : '#3b82f6'}
-                            strokeWidth="2"
-                            strokeDasharray={`${progressPercentage}, 100`}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
-                            {progressPercentage}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {goal.name}
-                          </span>
-                          <span className="text-base">{emojis[index] || '🎯'}</span>
-                        </div>
-                        <div className="flex justify-between items-center mt-1">
-                          <div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Saved up</div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {formatCurrency(parseFloat(goal.current_amount), authState.user)}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Goal</div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {formatCurrency(parseFloat(goal.target_amount), authState.user)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <button className="text-sm text-blue-500 hover:text-blue-600">
-                Show more
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
         </div>
 
-        {/* Right Column - Transactions and Analytics */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-
-          {/* Transactions Table */}
-          <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Last transactions</h3>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
-                      <Plus className="w-1 h-1 text-white" />
-                    </div>
-                    <button
-                      onClick={() => navigate('/transactions/new')}
-                      className="text-xs text-blue-500 hover:text-blue-600"
-                    >
-                      Add new
-                    </button>
+        {/* Main Layout */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Left Column */}
+          <div className="xl:col-span-4 space-y-6">
+            {/* Overall Balance */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Overall balance</span>
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Plus className="w-2 h-2 text-white" />
                   </div>
                   <button
-                    onClick={() => navigate('/transactions')}
-                    className="text-blue-500 hover:text-blue-600 text-sm"
+                    onClick={() => navigate('/accounts/new')}
+                    className="text-xs text-blue-500 hover:text-blue-600"
                   >
-                    Show more
+                    Add new
                   </button>
                 </div>
               </div>
-
-              {/* Date Filter */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    16-23/05/22
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Select
-                    options={[
-                      { value: 'all', label: 'All accounts' },
-                      ...(accountsQuery.data?.results || []).map(acc => ({
-                        value: acc.id.toString(),
-                        label: acc.name
-                      }))
-                    ]}
-                    value="all"
-                    onChange={() => {}}
-                    className="w-32 text-xs"
-                  />
-                  <Select
-                    options={[
-                      { value: 'all', label: 'All categories' },
-                      ...(categoriesQuery.data?.results || []).map(cat => ({
-                        value: cat.id,
-                        label: cat.name
-                      }))
-                    ]}
-                    value="all"
-                    onChange={() => {}}
-                    className="w-32 text-xs"
-                  />
-                </div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+                ${totalBalance.toLocaleString()}
               </div>
 
-              {/* Table Headers */}
-              <div className="grid grid-cols-5 gap-3 pb-2 border-b border-gray-200 dark:border-gray-700 mb-3">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Date</div>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Transaction</div>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Category</div>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Account</div>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide text-right">Amount</div>
-              </div>
+              {/* Featured Account Card */}
+              {primaryAccount ? (
+                <div className={`rounded-2xl p-6 text-white ${
+                  primaryAccount.account_type === 'credit' ?
+                  'bg-gradient-to-br from-purple-500 to-blue-600' :
+                  primaryAccount.account_type === 'savings' ?
+                  'bg-gradient-to-br from-green-500 to-teal-600' :
+                  primaryAccount.account_type === 'investment' ?
+                  'bg-gradient-to-br from-yellow-500 to-orange-600' :
+                  'bg-gradient-to-br from-blue-500 to-indigo-600'
+                }`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="text-sm opacity-90">{getAccountTypeDisplay(primaryAccount.account_type)}</div>
+                      <div className="text-xl font-bold mt-2">{primaryAccount.name}</div>
+                      <div className="text-sm opacity-75 mt-1">{maskAccountNumber(primaryAccount.account_number)}</div>
+                    </div>
+                    <div className="bg-white/20 px-3 py-1 rounded text-sm font-bold">
+                      {primaryAccount.institution || primaryAccount.currency}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div className="text-sm opacity-75">{new Date().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
+                    <div className="text-2xl font-bold">
+                      {formatCurrency(parseFloat(primaryAccount.balance || '0'), authState.user)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Empty state when no accounts exist
+                <div className="bg-gradient-to-br from-gray-400 to-gray-600 rounded-2xl p-6 text-white">
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="text-lg font-bold mb-2">No Accounts</div>
+                    <div className="text-sm opacity-75 text-center">
+                      Add your first account to get started
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
-              {/* Transaction Items */}
-              <div className="space-y-2">
-                {recentTransactions.slice(0, 8).map((transaction) => {
-                  const category = (categoriesQuery.data?.results || []).find(cat => cat.id === transaction.category_id);
-                  const account = (accountsQuery.data?.results || []).find(acc => acc.id === transaction.account_id);
-
-                  // Format date like "23/05/22"
-                  const formattedDate = new Date(transaction.date).toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit'
-                  });
-
-                  return (
-                    <div key={transaction.id} className="grid grid-cols-5 gap-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-secondary-700/50 rounded">
-                      <div className="flex items-center">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {formattedDate}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs ${
-                          category?.name === 'Cafes' ? 'bg-orange-100 dark:bg-orange-900/30' :
-                          category?.name === 'Coffee' ? 'bg-orange-100 dark:bg-orange-900/30' :
-                          category?.name === 'Food' ? 'bg-pink-100 dark:bg-pink-900/30' :
-                          category?.name === 'Flowers' ? 'bg-green-100 dark:bg-green-900/30' :
-                          'bg-gray-100 dark:bg-gray-800'
-                        }`}>
-                          {category?.name === 'Cafes' || category?.name === 'Coffee' ? '☕' :
-                           category?.name === 'Food' ? '🍽️' :
-                           category?.name === 'Flowers' ? '🌸' : '💳'}
+            {/* Other Accounts */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Other accounts</h3>
+              <div className="space-y-4">
+                {otherAccounts.length > 0 ? (
+                  otherAccounts.map((account) => (
+                    <div key={account.id} className="flex justify-between items-center">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {maskAccountNumber(account.account_number)}
                         </div>
-                        <span className="text-gray-900 dark:text-gray-100 font-medium text-xs">
-                          {transaction.description}
-                        </span>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={account.name}>
+                          {truncateText(account.name, 15)}
+                        </div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                          {getAccountTypeDisplay(account.account_type)}
+                        </div>
                       </div>
-
-                      <div>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                          category?.name === 'Cafes' || category?.name === 'Coffee' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
-                          category?.name === 'Food' ? 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300' :
-                          category?.name === 'Flowers' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                          'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                        }`}>
-                          {category?.name || 'Uncategorized'}
-                        </span>
-                      </div>
-
-                      <div className="text-gray-600 dark:text-gray-400 text-xs">
-                        {account?.account_type || 'Salary'}
-                      </div>
-
-                      <div className="text-right flex items-center justify-between">
-                        <span className={`font-semibold text-xs ${
-                          parseFloat(transaction.amount) >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {parseFloat(transaction.amount) < 0 ? '-' : ''}
-                          {formatCurrency(Math.abs(parseFloat(transaction.amount)), authState.user)}
-                        </span>
-                        <button className="text-gray-300 hover:text-gray-500 dark:hover:text-gray-300 ml-2">
-                          <MoreHorizontal className="w-3 h-3" />
-                        </button>
+                      <div className="text-lg font-bold text-gray-900 dark:text-white ml-2">
+                        {formatCurrency(parseFloat(account.balance || '0'), authState.user)}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-center mt-6">
+                  ))
+                ) : (
+                  // Empty state when no other accounts exist
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No additional accounts</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Add more accounts to see them here</p>
+                  </div>
+                )}
                 <button
-                  onClick={() => navigate('/transactions')}
-                  className="text-blue-500 hover:text-blue-600 text-sm"
+                  onClick={() => navigate('/accounts')}
+                  className="text-sm text-blue-500 hover:text-blue-600"
                 >
-                  Show more
+                  {otherAccounts.length > 0 ? 'Manage accounts' : 'Add accounts'}
+                </button>
+              </div>
+            </div>
+
+            {/* Goals */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Goals</h3>
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Plus className="w-2 h-2 text-white" />
+                  </div>
+                  <button
+                    onClick={() => navigate('/goals/new')}
+                    className="text-xs text-blue-500 hover:text-blue-600"
+                  >
+                    Add new
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {displayGoals.length > 0 ? (
+                  displayGoals.map((goal, index) => {
+                    const emojis = ['🎯', '💰', '🏆'];
+                    const progressColor = goal.progress_percentage >= 70 ? '#10b981' :
+                                        goal.progress_percentage >= 50 ? '#f59e0b' : '#3b82f6';
+                    return (
+                      <div key={goal.id} className="flex items-start space-x-3">
+                        <div className="relative w-12 h-12 flex-shrink-0">
+                          <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              className="text-gray-200 dark:text-gray-600"
+                            />
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke={progressColor}
+                              strokeWidth="3"
+                              strokeDasharray={`${goal.progress_percentage}, 100`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">
+                              {Math.round(goal.progress_percentage)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center space-x-1">
+                              <span
+                                className="text-sm font-semibold text-gray-900 dark:text-white truncate"
+                                title={goal.name || ''}
+                              >
+                                {truncateText(goal.name, 14)}
+                              </span>
+                              <span className="text-sm flex-shrink-0">{emojis[index] || '🎯'}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">Progress</span>
+                              <span className="text-xs font-medium text-gray-900 dark:text-white">
+                                {formatCurrency(parseFloat(goal.current_amount || '0'), authState.user)} / {formatCurrency(parseFloat(goal.target_amount || '0'), authState.user)}
+                              </span>
+                            </div>
+
+                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                              <div
+                                className="h-1.5 rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${Math.min(goal.progress_percentage, 100)}%`,
+                                  backgroundColor: progressColor
+                                }}
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-gray-500 dark:text-gray-400">
+                                {formatCurrency(parseFloat(goal.target_amount || '0') - parseFloat(goal.current_amount || '0'), authState.user)} to go
+                              </span>
+                              <span className={`font-medium ${
+                                goal.progress_percentage >= 70 ? 'text-green-600 dark:text-green-400' :
+                                goal.progress_percentage >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
+                                'text-blue-600 dark:text-blue-400'
+                              }`}>
+                                {goal.progress_percentage >= 90 ? 'Almost there!' :
+                                 goal.progress_percentage >= 70 ? 'Great progress!' :
+                                 goal.progress_percentage >= 30 ? 'Keep going!' : 'Just started'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  // Empty state when no goals exist
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-2">🎯</div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No goals yet</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Set your first financial goal</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => navigate('/goals')}
+                  className="text-sm text-blue-500 hover:text-blue-600 w-full text-left"
+                >
+                  {displayGoals.length > 0 ? 'View all goals' : 'Create your first goal'}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Expenditure Review */}
-          <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Expenditure review</h3>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Date: {new Date().toLocaleDateString('en-US', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit'
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-6 mb-6">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-blue-600">
-                    {formatCurrency(totalBalance, authState.user)}
+          {/* Right Column */}
+          <div className="xl:col-span-8 space-y-6">
+            {/* Transactions Table */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Last transactions</h3>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                        <Plus className="w-2 h-2 text-white" />
+                      </div>
+                      <button
+                        onClick={() => navigate('/transactions/new')}
+                        className="text-s text-blue-500 hover:text-blue-600"
+                      >
+                        Add new
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Balance</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">
-                    {formatCurrency(parseFloat(summary.total_income || '0'), authState.user)}
+
+                {/* Date and Filters */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                      {selectedTimeRange === 'all' ? 'All time' : `Last ${selectedTimeRange} days`}
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Income</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-red-600">
-                    {formatCurrency(Math.abs(parseFloat(summary.total_expenses || '0')), authState.user)}
+                  <div className="flex items-center space-x-3">
+                    <Select
+                      options={[
+                        { value: 'all', label: 'All accounts' },
+                        ...(accountsQuery.data?.results || []).map(account => ({
+                          value: account.id.toString(),
+                          label: account.name,
+                          description: `${account.account_type} • ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}`
+                        }))
+                      ]}
+                      value="all"
+                      onChange={(value) => {
+                        // Handle account filter change
+                        console.log('Account filter:', value);
+                      }}
+                      placeholder="Filter by account"
+                      searchPlaceholder="Search accounts..."
+                      allowClear={false}
+                      className="min-w-[160px]"
+                    />
+                    <Select
+                      options={[
+                        { value: 'all', label: 'All categories' },
+                        ...(categoriesQuery.data?.results || []).map(category => ({
+                          value: category.id.toString(),
+                          label: category.name,
+                          description: `${category.category_type} • ${category.icon || '💼'}`
+                        }))
+                      ]}
+                      value="all"
+                      onChange={(value) => {
+                        // Handle category filter change
+                        console.log('Category filter:', value);
+                      }}
+                      placeholder="Filter by category"
+                      searchPlaceholder="Search categories..."
+                      allowClear={false}
+                      className="min-w-[160px]"
+                    />
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Expenses</div>
                 </div>
-              </div>
 
-              <div className="text-right mb-4">
-                <Select
-                  options={[{ value: 'all', label: 'All accounts' }]}
-                  value="all"
-                  onChange={() => {}}
-                  className="w-40"
-                />
-              </div>
+                {/* Table Headers */}
+                <div className="grid grid-cols-5 gap-4 pb-3 mb-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-600">
+                  <div>Date</div>
+                  <div>Transaction</div>
+                  <div>Category</div>
+                  <div>Account</div>
+                  <div className="text-right">Amount</div>
+                </div>
 
-              {/* Chart */}
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData.slice(-7)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="period"
-                      tick={{ fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis hide />
-                    <Tooltip
-                      formatter={(value) => [formatCurrency(Number(value), authState.user), '']}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="income"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      dot={{ fill: '#10b981', r: 3 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="expenses"
-                      stroke="#ef4444"
-                      strokeWidth={2}
-                      dot={{ fill: '#ef4444', r: 3 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="net"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={{ fill: '#3b82f6', r: 3 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+                {/* Transaction Rows */}
+                <div className="space-y-3">
+                  {displayTransactions.length > 0 ? (
+                    displayTransactions.map((transaction, index) => {
+                    // Get category name from categories data
+                    const categories = categoriesQuery.data?.results || [];
+                    const category = categories.find((cat: any) => cat.id === transaction.category_id);
+                    const categoryName = String(category?.name || transaction.category || 'Uncategorized');
 
-              <div className="mt-4 flex justify-center space-x-6 text-xs">
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-gray-600 dark:text-gray-400">Mon</span>
+                    // Get account name from accounts data
+                    const accounts = accountsQuery.data?.results || [];
+                    const account = accounts.find((acc: any) => acc.id === transaction.account_id);
+                    const accountName = String(account?.name || transaction.account || 'Unknown');
+
+                    // Helper function to get category display using backend icon
+                    const getCategoryDisplay = (categoryId: number | undefined | null, categoryName: string | number | undefined | null) => {
+                      const categories = categoriesQuery.data?.results || [];
+                      const category = categories.find((cat: any) => cat.id === categoryId);
+                      const categoryIcon = category?.icon || '💼';
+
+                      // Generate colors based on category name for consistency
+                      if (!categoryName) return { bg: 'bg-gray-100 dark:bg-gray-900', text: 'text-gray-800 dark:text-gray-200', emoji: categoryIcon };
+                      const lowerName = String(categoryName).toLowerCase();
+
+                      if (lowerName.includes('food') || lowerName.includes('restaurant') || lowerName.includes('dining')) {
+                        return { bg: 'bg-pink-100 dark:bg-pink-900', text: 'text-pink-800 dark:text-pink-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('coffee') || lowerName.includes('cafe')) {
+                        return { bg: 'bg-orange-100 dark:bg-orange-900', text: 'text-orange-800 dark:text-orange-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('transport') || lowerName.includes('travel') || lowerName.includes('gas')) {
+                        return { bg: 'bg-blue-100 dark:bg-blue-900', text: 'text-blue-800 dark:text-blue-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('shop') || lowerName.includes('retail') || lowerName.includes('store')) {
+                        return { bg: 'bg-purple-100 dark:bg-purple-900', text: 'text-purple-800 dark:text-purple-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('health') || lowerName.includes('medical') || lowerName.includes('pharmacy')) {
+                        return { bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('entertain') || lowerName.includes('movie') || lowerName.includes('game')) {
+                        return { bg: 'bg-indigo-100 dark:bg-indigo-900', text: 'text-indigo-800 dark:text-indigo-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('utility') || lowerName.includes('bill') || lowerName.includes('electric')) {
+                        return { bg: 'bg-yellow-100 dark:bg-yellow-900', text: 'text-yellow-800 dark:text-yellow-200', emoji: categoryIcon };
+                      } else if (lowerName.includes('income') || lowerName.includes('salary') || lowerName.includes('wage')) {
+                        return { bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', emoji: categoryIcon };
+                      } else {
+                        return { bg: 'bg-gray-100 dark:bg-gray-900', text: 'text-gray-800 dark:text-gray-200', emoji: categoryIcon };
+                      }
+                    };
+
+                    const categoryDisplay = getCategoryDisplay(transaction.category_id, categoryName);
+                    const amount = parseFloat(transaction.amount || '0');
+                    const isIncome = amount > 0;
+
+                    return (
+                      <div key={transaction.id} className="grid grid-cols-5 gap-2 lg:gap-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 rounded">
+                        <div className="flex items-center text-gray-600 dark:text-gray-300 text-xs lg:text-sm">
+                          {new Date(transaction.date).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: '2-digit'
+                          })}
+                        </div>
+                        <div className="flex items-center space-x-2 lg:space-x-3 min-w-0">
+                          <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center text-xs lg:text-sm flex-shrink-0 ${categoryDisplay.bg}`}>
+                            {categoryDisplay.emoji}
+                          </div>
+                          <span
+                            className="font-medium text-gray-900 dark:text-white truncate min-w-0"
+                            title={transaction.description || ''}
+                          >
+                            {truncateText(transaction.description, 12)}
+                          </span>
+                        </div>
+                        <div className="flex justify-start">
+                          <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${categoryDisplay.bg} ${categoryDisplay.text}`}>
+                            {truncateText(categoryName, 8)}
+                          </span>
+                        </div>
+                        <div className="text-gray-600 dark:text-gray-300 text-xs truncate" title={accountName}>
+                          {truncateText(accountName, 8)}
+                        </div>
+                        <div className="text-right flex items-center justify-between min-w-0">
+                          <span className={`font-semibold text-xs lg:text-sm truncate ${
+                            isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {isIncome ? '+' : '-'}{formatCurrency(Math.abs(amount), authState.user)}
+                          </span>
+                          <button className="text-gray-300 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 flex-shrink-0 ml-1">
+                            <MoreHorizontal className="w-3 h-3 lg:w-4 lg:h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                  ) : (
+                    // Empty state when no transactions exist
+                    <div className="text-center py-12">
+                      <div className="text-4xl mb-4">💳</div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No transactions yet</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        Start by adding your first transaction or connecting an account
+                      </p>
+                      <button
+                        onClick={() => navigate('/transactions/new')}
+                        className="text-sm text-blue-500 hover:text-blue-600 font-medium"
+                      >
+                        Add your first transaction
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-600 dark:text-gray-400">Tue</span>
+
+                {displayTransactions.length > 0 && (
+                  <div className="flex justify-center mt-6">
+                    <button
+                      onClick={() => navigate('/transactions')}
+                      className="text-sm text-blue-500 hover:text-blue-600"
+                    >
+                      View all transactions
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Expenditure Review */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Expenditure review</h3>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {selectedTimeRange === 'all' ? 'All time' : `Last ${selectedTimeRange} days`}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  <span className="text-gray-600 dark:text-gray-400">Wed</span>
+
+                <div className="grid grid-cols-3 gap-6 mb-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {formatCurrency(analyticsData.netFlow, authState.user)}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Net Flow</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {formatCurrency(analyticsData.totalIncome, authState.user)}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Income</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                      {formatCurrency(analyticsData.totalExpenses, authState.user)}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Expenses</div>
+                  </div>
                 </div>
-                <span className="text-gray-600 dark:text-gray-400">Thu</span>
-                <span className="text-gray-600 dark:text-gray-400">Fri</span>
-                <span className="text-gray-600 dark:text-gray-400">Sat</span>
-                <span className="text-gray-600 dark:text-gray-400">Sun</span>
+
+                <div className="text-right mb-4">
+                  <Select
+                    options={[
+                      { value: 'all', label: 'All accounts' },
+                      ...(accountsQuery.data?.results || []).map(account => ({
+                        value: account.id.toString(),
+                        label: account.name,
+                        description: `${account.account_type} • ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}`
+                      }))
+                    ]}
+                    value="all"
+                    onChange={(value) => {
+                      // Handle expenditure account filter
+                      console.log('Expenditure account filter:', value);
+                    }}
+                    placeholder="Filter by account"
+                    searchPlaceholder="Search accounts..."
+                    allowClear={false}
+                    className="min-w-[180px]"
+                  />
+                </div>
+
+                {/* Chart Placeholder */}
+                <div className="h-64 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <div className="text-gray-400 dark:text-gray-500">Chart will be displayed here</div>
+                </div>
+
+                <div className="mt-4 flex justify-center space-x-6 text-xs">
+                  <span className="text-gray-600 dark:text-gray-300">Mon</span>
+                  <span className="text-gray-600 dark:text-gray-300">Tue</span>
+                  <span className="text-gray-600 dark:text-gray-300">Wed</span>
+                  <span className="text-gray-600 dark:text-gray-300">Thu</span>
+                  <span className="text-gray-600 dark:text-gray-300">Fri</span>
+                  <span className="text-gray-600 dark:text-gray-300">Sat</span>
+                  <span className="text-gray-600 dark:text-gray-300">Sun</span>
+                </div>
               </div>
             </div>
           </div>

@@ -24,12 +24,19 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth } from "../contexts/AuthContext";
+import { useTransactionSummary, useAccounts, useGoals } from "../features/finance/hooks/queries";
+import { formatCurrency } from "../utils/preferences";
 import { motion, AnimatePresence } from "framer-motion";
 import "../components/ProLandingPage.css";
 import { useSubscribeNewsletter } from "../hooks/settings";
 
 const ProLandingPage: React.FC = () => {
   const { toggleTheme, isDark } = useTheme();
+  const { state } = useAuth();
+  const summaryQuery = useTransactionSummary();
+  const accountsQuery = useAccounts();
+  const goalsQuery = useGoals();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -163,24 +170,49 @@ const ProLandingPage: React.FC = () => {
                 )}
               </Button>
             </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="hidden md:block"
-            >
-              <Link to="/login">
-                <Button variant="secondary">Login</Button>
-              </Link>
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="hidden md:block"
-            >
-              <Link to="/login">
-                <Button variant="primary">Get Started</Button>
-              </Link>
-            </motion.div>
+            {!state.user ? (
+              <>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="hidden md:block"
+                >
+                  <Link to="/login">
+                    <Button variant="secondary">Login</Button>
+                  </Link>
+                </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="hidden md:block"
+                >
+                  <Link to="/login">
+                    <Button variant="primary">Get Started</Button>
+                  </Link>
+                </motion.div>
+              </>
+            ) : (
+              <>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="hidden md:block"
+                >
+                  <Link to="/dashboard">
+                    <Button variant="primary">Dashboard</Button>
+                  </Link>
+                </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="hidden md:block"
+                >
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Welcome, {state.user.full_name || state.user.username}!
+                  </span>
+                </motion.div>
+              </>
+            )}
             <div className="md:hidden">
               <Button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -225,16 +257,31 @@ const ProLandingPage: React.FC = () => {
               >
                 Testimonials
               </a>
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="secondary" className="w-full">
-                  Login
-                </Button>
-              </Link>
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="primary" className="w-full">
-                  Get Started
-                </Button>
-              </Link>
+              {!state.user ? (
+                <>
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="secondary" className="w-full">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="primary" className="w-full">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Welcome, {state.user.full_name || state.user.username}!
+                  </div>
+                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="primary" className="w-full">
+                      Dashboard
+                    </Button>
+                  </Link>
+                </>
+              )}
             </nav>
           </motion.div>
         )}
@@ -249,23 +296,41 @@ const ProLandingPage: React.FC = () => {
             variants={containerVariants}
           >
             <motion.h1 className="pro-hero-title" variants={itemVariants}>
-              Take Control of Your Financial Future
+              {!state.user
+                ? "Take Control of Your Financial Future"
+                : `Welcome back, ${state.user.full_name || state.user.username}!`
+              }
             </motion.h1>
             <motion.p className="pro-hero-subtitle" variants={itemVariants}>
-              Smart budgeting and expense tracking to help you achieve your
-              financial goals.
+              {!state.user
+                ? "Smart budgeting and expense tracking to help you achieve your financial goals."
+                : "Ready to continue your financial journey? Access your dashboard or add new transactions."
+              }
             </motion.p>
             <motion.div variants={itemVariants}>
-              <Link to="/login">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button variant="primary" size="lg">
-                    Get Started Today <ArrowRight className="ml-2" />
-                  </Button>
-                </motion.div>
-              </Link>
+              {!state.user ? (
+                <Link to="/login">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button variant="primary" size="lg">
+                      Get Started Today <ArrowRight className="ml-2" />
+                    </Button>
+                  </motion.div>
+                </Link>
+              ) : (
+                <Link to="/dashboard">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button variant="primary" size="lg">
+                      Go to Dashboard <ArrowRight className="ml-2" />
+                    </Button>
+                  </motion.div>
+                </Link>
+              )}
             </motion.div>
           </motion.div>
         </section>

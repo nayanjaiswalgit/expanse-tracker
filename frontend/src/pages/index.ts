@@ -1,5 +1,4 @@
 // Pages Export
-export { LandingPage } from './LandingPage';
 export { ProLandingPage } from './ProLandingPage';
 export { PrivacyPolicy } from './PrivacyPolicy';
 export { TermsOfService } from './TermsOfService';

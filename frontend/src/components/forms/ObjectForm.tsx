@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FieldValues } from 'react-hook-form';
 import { FormConfig } from '../../types/forms';
 import { useObjectForm } from '../../hooks/useObjectForm';
 import { FormField } from './FormField';
 import { Button } from '../ui/Button';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ObjectFormProps<T extends FieldValues> {
@@ -16,6 +17,7 @@ export function ObjectForm<T extends FieldValues>({
   className,
 }: ObjectFormProps<T>) {
   const { form, isLoading, submit, getFieldError, isFieldVisible } = useObjectForm(config);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const {
     control,
@@ -112,15 +114,7 @@ export function ObjectForm<T extends FieldValues>({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={clsx(
-        'w-full',
-        config.layout ? layoutClasses[config.layout] : layoutClasses.vertical,
-        className,
-        config.className
-      )}
-    >
+    <form onSubmit={handleSubmit} className={clsx('w-full', className, config.className)}>
       {config.title && (
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -134,6 +128,7 @@ export function ObjectForm<T extends FieldValues>({
         </div>
       )}
 
+      {/* Essential Fields */}
       <div className={clsx(
         config.layout ? layoutClasses[config.layout] : layoutClasses.vertical
       )}>
@@ -150,6 +145,41 @@ export function ObjectForm<T extends FieldValues>({
             />
           ))}
       </div>
+
+      {/* Advanced Fields Toggle - Below entire form */}
+      {config.advancedFields && config.advancedFields.length > 0 && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+          >
+            {showAdvanced ? (
+              <ChevronDown className="w-4 h-4 mr-1" />
+            ) : (
+              <ChevronRight className="w-4 h-4 mr-1" />
+            )}
+            More Options
+          </button>
+
+          {showAdvanced && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+              {config.advancedFields
+                .filter(field => isFieldVisible(field))
+                .map((fieldConfig) => (
+                  <FormField
+                    key={fieldConfig.name}
+                    name={fieldConfig.name as any}
+                    control={control}
+                    error={errors[fieldConfig.name]}
+                    config={fieldConfig}
+                    disabled={isLoading || config.submission.disabled}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 flex justify-end space-x-3">
         {config.submission.onCancel && (

@@ -160,7 +160,7 @@ export const accountManagementSchema = z.object({
   name: z
     .string()
     .min(1, 'Account name is required')
-    .max(100, 'Account name must be less than 100 characters'),
+    .max(255, 'Account name must be less than 255 characters'),
   account_type: z.enum([
     'checking',
     'savings',
@@ -174,19 +174,22 @@ export const accountManagementSchema = z.object({
   }),
   balance: z
     .number()
-    .or(z.string().refine((val) => !isNaN(Number(val)), 'Balance must be a valid number')),
+    .or(z.string().transform((val) => Number(val)).refine((val) => !isNaN(val), 'Balance must be a valid number'))
+    .default(0),
   currency: z
     .string()
-    .min(1, 'Currency is required')
-    .length(3, 'Currency must be a 3-letter code'),
+    .length(3, 'Currency must be a 3-letter code')
+    .default('USD'),
   institution: z
     .string()
-    .max(100, 'Institution name must be less than 100 characters')
-    .optional(),
-  description: z
+    .max(255, 'Institution name must be less than 255 characters')
+    .optional()
+    .or(z.literal('')),
+  account_number: z
     .string()
-    .max(500, 'Description must be less than 500 characters')
-    .optional(),
+    .max(50, 'Account number must be less than 50 characters')
+    .optional()
+    .or(z.literal('')),
   is_active: z.boolean().default(true),
 });
 

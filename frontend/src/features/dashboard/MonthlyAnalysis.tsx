@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency } from '../../utils/preferences';
 import {
   useAvailablePeriods,
   useReportHistory,
@@ -133,12 +134,6 @@ const MonthlyAnalysis: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const getHealthScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
@@ -326,7 +321,7 @@ const MonthlyAnalysis: React.FC = () => {
                   <div className="ml-3">
                     <p className="text-sm font-medium text-secondary-600 dark:text-secondary-400">Total Income</p>
                     <p className="text-2xl font-bold text-secondary-900 dark:text-secondary-100">
-                      {formatCurrency(currentReport.financial_summary.summary.total_income)}
+                      {formatCurrency(currentReport.financial_summary.summary.total_income, authState.user)}
                     </p>
                   </div>
                 </div>
@@ -340,7 +335,7 @@ const MonthlyAnalysis: React.FC = () => {
                   <div className="ml-3">
                     <p className="text-sm font-medium text-secondary-600 dark:text-secondary-400">Total Expenses</p>
                     <p className="text-2xl font-bold text-secondary-900 dark:text-secondary-100">
-                      {formatCurrency(currentReport.financial_summary.summary.total_expenses)}
+                      {formatCurrency(currentReport.financial_summary.summary.total_expenses, authState.user)}
                     </p>
                   </div>
                 </div>
@@ -354,7 +349,7 @@ const MonthlyAnalysis: React.FC = () => {
                   <div className="ml-3">
                     <p className="text-sm font-medium text-secondary-600 dark:text-secondary-400">Net Income</p>
                     <p className={`text-2xl font-bold ${currentReport.financial_summary.summary.net_income >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(currentReport.financial_summary.summary.net_income)}
+                      {formatCurrency(currentReport.financial_summary.summary.net_income, authState.user)}
                     </p>
                   </div>
                 </div>
@@ -468,7 +463,7 @@ const MonthlyAnalysis: React.FC = () => {
                             {rec.potential_savings && (
                               <div className="text-right ml-4">
                                 <div className="text-sm font-medium">Potential Savings</div>
-                                <div className="text-lg font-bold">{formatCurrency(rec.potential_savings)}</div>
+                                <div className="text-lg font-bold">{formatCurrency(rec.potential_savings, authState.user)}</div>
                               </div>
                             )}
                           </div>
@@ -497,7 +492,7 @@ const MonthlyAnalysis: React.FC = () => {
                             {category.category}
                           </span>
                           <span className="text-sm text-secondary-600 dark:text-secondary-400">
-                            {formatCurrency(category.amount)} ({category.percentage.toFixed(1)}%)
+                            {formatCurrency(category.amount, authState.user)} ({category.percentage.toFixed(1)}%)
                           </span>
                         </div>
                         <div className="w-full bg-secondary-200 dark:bg-secondary-700 rounded-full h-2">

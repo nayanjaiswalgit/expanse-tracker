@@ -432,8 +432,8 @@ class ApiClient {
   }
 
   async createAccount(account: Omit<Account, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Account> {
-    const response = await this.client.post('/accounts/', account);
-    return response.data;
+      const response = await this.client.post('/accounts/', account);
+      return response.data;
   }
 
   async updateAccount(id: number, account: Partial<Account>): Promise<Account> {
