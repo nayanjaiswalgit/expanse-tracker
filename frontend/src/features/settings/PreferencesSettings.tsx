@@ -134,7 +134,7 @@ const PreferencesSettings: React.FC = () => {
 
             <div className="pb-4">
               <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                <Clock className=" w-4" />
+                <Clock className="h-4 w-4" />
                 <span>Time & Language</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

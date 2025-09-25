@@ -5,9 +5,15 @@ Goal-related views for the finance app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from PIL import Image
+import os
+import uuid
 
-from ..models import Goal
-from ..serializers import GoalSerializer
+from ..models import Goal, GoalImage
+from ..serializers import GoalSerializer, GoalImageSerializer
 
 
 class GoalViewSet(viewsets.ModelViewSet):
@@ -15,12 +21,84 @@ class GoalViewSet(viewsets.ModelViewSet):
 
     serializer_class = GoalSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         return Goal.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        goal = serializer.save(user=self.request.user)
+        self._handle_image_uploads(goal, self.request)
+
+    def perform_update(self, serializer):
+        goal = serializer.save()
+        self._handle_image_uploads(goal, self.request)
+
+    def _handle_image_uploads(self, goal, request):
+        """Handle image uploads for a goal"""
+        uploaded_files = request.FILES.getlist('images')
+        captions = request.data.getlist('captions', [])
+
+        for i, uploaded_file in enumerate(uploaded_files):
+            if uploaded_file and uploaded_file.content_type.startswith('image/'):
+                try:
+                    # Generate unique filename
+                    file_extension = uploaded_file.name.split('.')[-1]
+                    filename = f"goals/{goal.id}/{uuid.uuid4()}.{file_extension}"
+
+                    # Save file
+                    path = default_storage.save(filename, ContentFile(uploaded_file.read()))
+                    image_url = default_storage.url(path)
+
+                    # Create thumbnail
+                    thumbnail_url = self._create_thumbnail(path, uploaded_file)
+
+                    # Get caption if provided
+                    caption = captions[i] if i < len(captions) else ""
+
+                    # Create GoalImage record
+                    GoalImage.objects.create(
+                        goal=goal,
+                        image_url=image_url,
+                        thumbnail_url=thumbnail_url,
+                        caption=caption,
+                        is_primary=goal.images.count() == 0  # First image is primary
+                    )
+                except Exception as e:
+                    # Log error but don't fail the goal creation
+                    print(f"Error uploading image: {e}")
+
+    def _create_thumbnail(self, image_path, uploaded_file):
+        """Create a thumbnail for the uploaded image"""
+        try:
+            # Reset file pointer
+            uploaded_file.seek(0)
+
+            # Open image with PIL
+            with Image.open(uploaded_file) as img:
+                # Convert to RGB if necessary
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                # Create thumbnail
+                img.thumbnail((200, 200), Image.Resampling.LANCZOS)
+
+                # Generate thumbnail filename
+                base_path = os.path.splitext(image_path)[0]
+                thumbnail_path = f"{base_path}_thumb.jpg"
+
+                # Save thumbnail
+                from io import BytesIO
+                thumb_io = BytesIO()
+                img.save(thumb_io, format='JPEG', quality=85)
+                thumb_io.seek(0)
+
+                saved_path = default_storage.save(thumbnail_path, ContentFile(thumb_io.read()))
+                return default_storage.url(saved_path)
+
+        except Exception as e:
+            print(f"Error creating thumbnail: {e}")
+            return None
 
     @action(detail=True, methods=["post"])
     def update_progress(self, request, pk=None):

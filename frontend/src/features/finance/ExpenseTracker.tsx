@@ -66,6 +66,28 @@ const ExpenseTracker: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Form states
+  const [groupType, setGroupType] = useState<'one-to-one' | 'multi-person'>('multi-person');
+  const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+
+  // Handlers
+  const handleCreateGroup = async () => {
+    try {
+      await createExpenseGroupMutation.mutateAsync({
+        name: groupName,
+        description: groupDescription,
+        group_type: groupType,
+      });
+      setShowCreateModal(false);
+      setGroupName('');
+      setGroupDescription('');
+      setGroupType('multi-person');
+    } catch (error) {
+      console.error('Failed to create group:', error);
+    }
+  };
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'settled'>('all');
   const [showBalances, setShowBalances] = useState(true);
 
@@ -196,7 +218,7 @@ const ExpenseTracker: React.FC = () => {
                 flex items-center px-6 py-3 rounded-xl transition-all duration-200 font-medium
                 ${activeView === key
                   ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-md shadow-gray-200/50 dark:shadow-gray-900/50'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }
               `}
             >
@@ -252,7 +274,7 @@ const ExpenseTracker: React.FC = () => {
                   </div>
                   <div className="divide-y divide-gray-100 dark:divide-gray-700">
                     {filteredExpenses.slice(0, 5).map((expense) => (
-                      <div key={expense.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                      <div key={expense.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-1.5">
@@ -480,7 +502,7 @@ const ExpenseTracker: React.FC = () => {
           {activeView === 'groups' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredGroups
-                .filter(group => group.type === 'group')
+                .filter(group => group.group_type === 'multi-person')
                 .map((group) => (
                   <div key={group.id} className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700">
                     <div className="p-6">
@@ -572,6 +594,20 @@ const ExpenseTracker: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              {filteredGroups.filter(group => group.group_type === 'multi-person').length === 0 && (
+                <div className="col-span-full text-center p-12">
+                  <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    No group expenses
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">
+                    Create a group to split expenses with multiple people
+                  </p>
+                  <Button onClick={() => setShowCreateModal(true)}>
+                    Create Group
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </motion.div>
@@ -592,22 +628,40 @@ const ExpenseTracker: React.FC = () => {
             <Select
               options={[
                 { value: 'one-to-one', label: 'Personal (1-on-1)' },
-                { value: 'group', label: 'Group Expenses' },
+                { value: 'multi-person', label: 'Group Expenses' },
               ]}
+              value={groupType}
+              onChange={(value) => setGroupType(value as 'one-to-one' | 'multi-person')}
               placeholder="Select group type..."
             />
           </div>
-          <Input placeholder="Group name" />
-          <Input placeholder="Description (optional)" />
+          <Input
+            placeholder="Group name"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+          />
+          <Input
+            placeholder="Description (optional)"
+            value={groupDescription}
+            onChange={(e) => setGroupDescription(e.target.value)}
+          />
           <div className="flex justify-end space-x-3">
             <Button
               variant="outline"
-              onClick={() => setShowCreateModal(false)}
+              onClick={() => {
+                setShowCreateModal(false);
+                setGroupName('');
+                setGroupDescription('');
+                setGroupType('multi-person');
+              }}
             >
               Cancel
             </Button>
-            <Button>
-              Create Group
+            <Button
+              onClick={handleCreateGroup}
+              disabled={!groupName.trim() || createExpenseGroupMutation.isPending}
+            >
+              {createExpenseGroupMutation.isPending ? 'Creating...' : 'Create Group'}
             </Button>
           </div>
         </div>

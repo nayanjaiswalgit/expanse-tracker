@@ -16,9 +16,13 @@ from core.models.base import (
 from .accounts import Account
 from .transactions import BaseTransaction, Transaction, Category, Tag
 from .investments import Investment
-from .goals import Goal, GroupExpense, GroupExpenseShare
+from .goals import Goal, GoalImage, GroupExpense, GroupExpenseShare
 from .invoices import Invoice
 from .expense_groups import ExpenseGroup, ExpenseGroupMembership
+from .uploads import (
+    UploadSession, StatementImport, TransactionImport,
+    TransactionLink, MerchantPattern
+)
 
 __all__ = [
     # Base classes
@@ -37,6 +41,7 @@ __all__ = [
     "Investment",
     # Goal models
     "Goal",
+    "GoalImage",
     "GroupExpense",
     "GroupExpenseShare",
     # Invoice models
@@ -44,4 +49,10 @@ __all__ = [
     # Expense Group models
     "ExpenseGroup",
     "ExpenseGroupMembership",
+    # Upload models
+    "UploadSession",
+    "StatementImport",
+    "TransactionImport",
+    "TransactionLink",
+    "MerchantPattern",
 ]

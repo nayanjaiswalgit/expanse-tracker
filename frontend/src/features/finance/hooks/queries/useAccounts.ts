@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../../api';
-import type { Account } from '../../types';
+import type { Account, BalanceHistory } from '../../../../types';
 
 // Query Keys
 export const accountKeys = {
@@ -49,6 +49,35 @@ export function useDeleteAccount() {
   return useMutation({
     mutationFn: (id: number) => apiClient.deleteAccount(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
+    },
+  });
+}
+
+// Balance History
+export const balanceHistoryKeys = {
+  all: ['balance-history'] as const,
+  lists: () => [...balanceHistoryKeys.all, 'list'] as const,
+  list: (accountId: number) => [...balanceHistoryKeys.lists(), accountId] as const,
+};
+
+export function useBalanceHistory(accountId: number) {
+  return useQuery({
+    queryKey: balanceHistoryKeys.list(accountId),
+    queryFn: () => apiClient.getAccountBalanceHistory(accountId),
+    enabled: !!accountId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useCreateBalanceHistoryEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (entry: Omit<BalanceHistory, 'id' | 'created_at' | 'updated_at'>) =>
+      apiClient.createBalanceHistoryEntry(entry),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: balanceHistoryKeys.list(variables.account_id) });
       queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
     },
   });

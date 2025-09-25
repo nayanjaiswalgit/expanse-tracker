@@ -76,7 +76,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         e.preventDefault();
         if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
           console.log('Enter key selected:', filteredOptions[highlightedIndex]);
-          onChange(filteredOptions[highlightedIndex].value);
+          onChange(filteredOptions[highlightedIndex]?.value);
           setIsOpen(false);
           setSearchTerm('');
           setHighlightedIndex(-1);
@@ -111,7 +111,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const handleOptionClick = (option: Option, e?: React.MouseEvent) => {
     e?.stopPropagation();
     console.log('Option clicked:', option);
-    onChange(option.value);
+    onChange(option?.value);
     setIsOpen(false);
     setSearchTerm('');
     setHighlightedIndex(-1);

@@ -37,8 +37,21 @@ export interface Account {
   currency: string;
   is_active: boolean;
   institution?: string;
+  account_number?: string;
   account_number_last4?: string;
   tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BalanceHistory {
+  id: number;
+  account_id: number;
+  old_balance: string;
+  new_balance: string;
+  change_amount: string;
+  reason: 'manual_update' | 'transaction' | 'correction' | 'other';
+  description?: string;
   created_at: string;
   updated_at: string;
 }
@@ -86,15 +99,30 @@ export interface Goal {
   user_id: number;
   name: string;
   description?: string;
+  goal_type?: 'savings' | 'spending' | 'debt_payoff' | 'investment';
   target_amount: string;
   current_amount: string;
   target_date?: string;
+  start_date?: string;
+  currency?: string;
+  color?: string;
   status: 'active' | 'paused' | 'completed' | 'cancelled';
   progress_percentage: number;
   remaining_amount: string;
   is_completed: boolean;
+  images?: GoalImage[];
   created_at: string;
   updated_at: string;
+}
+
+export interface GoalImage {
+  id: number;
+  goal_id: number;
+  image_url: string;
+  thumbnail_url?: string;
+  caption?: string;
+  is_primary: boolean;
+  created_at: string;
 }
 
 export interface MerchantPattern {
@@ -311,4 +339,104 @@ export interface LendingRepayment {
   date: string;
   notes?: string;
   created_at: string;
+}
+
+// Upload Session Types
+export interface UploadSession {
+  id: number;
+  original_filename: string;
+  file_type: string;
+  file_size: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  account?: number;
+  account_name?: string;
+  total_transactions: number;
+  successful_imports: number;
+  failed_imports: number;
+  duplicate_imports: number;
+  processing_started_at?: string;
+  processing_completed_at?: string;
+  processing_duration?: number;
+  success_rate?: number;
+  error_message?: string;
+  requires_password: boolean;
+  password_attempts: number;
+  ai_categorization_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionImport {
+  id: number;
+  upload_session: number;
+  statement_import?: number;
+  transaction?: number;
+  import_status: 'pending' | 'imported' | 'duplicate' | 'failed' | 'skipped';
+  raw_data: Record<string, any>;
+  parsed_amount?: string;
+  parsed_date?: string;
+  parsed_description: string;
+  error_message?: string;
+  suggested_category_confidence?: string;
+  ai_merchant_detection: Record<string, any>;
+  transaction_details?: {
+    id: number;
+    amount: string;
+    description: string;
+    date: string;
+    category?: string;
+  };
+  created_at: string;
+}
+
+export interface TransactionLink {
+  id: number;
+  from_transaction: number;
+  to_transaction: number;
+  link_type: 'transfer' | 'refund' | 'split_payment' | 'correction' | 'duplicate';
+  confidence_score: string;
+  is_confirmed: boolean;
+  notes?: string;
+  auto_detected: boolean;
+  from_transaction_details: {
+    id: number;
+    amount: string;
+    description: string;
+    date: string;
+    account?: string;
+  };
+  to_transaction_details: {
+    id: number;
+    amount: string;
+    description: string;
+    date: string;
+    account?: string;
+  };
+  created_at: string;
+}
+
+export interface MerchantPattern {
+  id: number;
+  pattern: string;
+  category: number;
+  category_name: string;
+  category_color: string;
+  merchant_name: string;
+  confidence: string;
+  usage_count: number;
+  last_used?: string;
+  is_active: boolean;
+  is_user_confirmed: boolean;
+  pattern_type: string;
+  created_at: string;
+}
+
+export interface UploadStats {
+  total_sessions: number;
+  completed_sessions: number;
+  failed_sessions: number;
+  processing_sessions: number;
+  total_transactions_imported: number;
+  total_files_size: number;
+  recent_sessions: UploadSession[];
 }

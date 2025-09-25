@@ -414,7 +414,7 @@ export const Dashboard: React.FC = () => {
                     return (
                       <div key={goal.id} className="flex items-start space-x-3">
                         <div className="relative w-12 h-12 flex-shrink-0">
-                          <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                          <svg className="w-12 h-12 transform rotate-0" viewBox="0 0 36 36">
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
@@ -518,64 +518,25 @@ export const Dashboard: React.FC = () => {
                       <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
                         <Plus className="w-2 h-2 text-white" />
                       </div>
-                      <button
+                      <Button
                         onClick={() => navigate('/transactions/new')}
-                        className="text-s text-blue-500 hover:text-blue-600"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
                       >
+                        <Plus className="w-3 h-3 mr-1" />
                         Add new
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
 
-                {/* Date and Filters */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">
-                      {selectedTimeRange === 'all' ? 'All time' : `Last ${selectedTimeRange} days`}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Select
-                      options={[
-                        { value: 'all', label: 'All accounts' },
-                        ...(accountsQuery.data?.results || []).map(account => ({
-                          value: account.id.toString(),
-                          label: account.name,
-                          description: `${account.account_type} • ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}`
-                        }))
-                      ]}
-                      value="all"
-                      onChange={(value) => {
-                        // Handle account filter change
-                        console.log('Account filter:', value);
-                      }}
-                      placeholder="Filter by account"
-                      searchPlaceholder="Search accounts..."
-                      allowClear={false}
-                      className="min-w-[160px]"
-                    />
-                    <Select
-                      options={[
-                        { value: 'all', label: 'All categories' },
-                        ...(categoriesQuery.data?.results || []).map(category => ({
-                          value: category.id.toString(),
-                          label: category.name,
-                          description: `${category.category_type} • ${category.icon || '💼'}`
-                        }))
-                      ]}
-                      value="all"
-                      onChange={(value) => {
-                        // Handle category filter change
-                        console.log('Category filter:', value);
-                      }}
-                      placeholder="Filter by category"
-                      searchPlaceholder="Search categories..."
-                      allowClear={false}
-                      className="min-w-[160px]"
-                    />
-                  </div>
+                {/* Date Header */}
+                <div className="flex items-center space-x-2 mb-6">
+                  <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Last 30 days
+                  </span>
                 </div>
 
                 {/* Table Headers */}
@@ -593,13 +554,17 @@ export const Dashboard: React.FC = () => {
                     displayTransactions.map((transaction, index) => {
                     // Get category name from categories data
                     const categories = categoriesQuery.data?.results || [];
-                    const category = categories.find((cat: any) => cat.id === transaction.category_id);
-                    const categoryName = String(category?.name || transaction.category || 'Uncategorized');
+                    const category = categories.find((cat: any) =>
+                      cat.id == transaction.category_id || cat.id === String(transaction.category_id)
+                    );
+                    const categoryName = category?.name || 'Uncategorized';
 
                     // Get account name from accounts data
                     const accounts = accountsQuery.data?.results || [];
-                    const account = accounts.find((acc: any) => acc.id === transaction.account_id);
-                    const accountName = String(account?.name || transaction.account || 'Unknown');
+                    const account = accounts.find((acc: any) =>
+                      acc.id == transaction.account_id || acc.id === String(transaction.account_id)
+                    );
+                    const accountName = account?.name || 'Unknown Account';
 
                     // Helper function to get category display using backend icon
                     const getCategoryDisplay = (categoryId: number | undefined | null, categoryName: string | number | undefined | null) => {
@@ -637,7 +602,7 @@ export const Dashboard: React.FC = () => {
                     const isIncome = amount > 0;
 
                     return (
-                      <div key={transaction.id} className="grid grid-cols-5 gap-2 lg:gap-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 rounded">
+                      <div key={transaction.id} className="grid grid-cols-5 gap-2 lg:gap-4 py-3 px-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors duration-150 hover:shadow-sm -mx-2">
                         <div className="flex items-center text-gray-600 dark:text-gray-300 text-xs lg:text-sm">
                           {new Date(transaction.date).toLocaleDateString('en-GB', {
                             day: '2-digit',
@@ -670,8 +635,12 @@ export const Dashboard: React.FC = () => {
                           }`}>
                             {isIncome ? '+' : '-'}{formatCurrency(Math.abs(amount), authState.user)}
                           </span>
-                          <button className="text-gray-300 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 flex-shrink-0 ml-1">
-                            <MoreHorizontal className="w-3 h-3 lg:w-4 lg:h-4" />
+                          <button
+                            onClick={() => navigate(`/transactions?account_id=${transaction.account_id}&category_id=${transaction.category_id}`)}
+                            className="text-gray-300 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 flex-shrink-0 ml-1"
+                            title="View similar transactions"
+                          >
+                            <MoreHorizontal className="w-3 h-3 lg:w-4 lg:h-4 transform rotate-90" />
                           </button>
                         </div>
                       </div>
@@ -739,27 +708,6 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="text-right mb-4">
-                  <Select
-                    options={[
-                      { value: 'all', label: 'All accounts' },
-                      ...(accountsQuery.data?.results || []).map(account => ({
-                        value: account.id.toString(),
-                        label: account.name,
-                        description: `${account.account_type} • ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}`
-                      }))
-                    ]}
-                    value="all"
-                    onChange={(value) => {
-                      // Handle expenditure account filter
-                      console.log('Expenditure account filter:', value);
-                    }}
-                    placeholder="Filter by account"
-                    searchPlaceholder="Search accounts..."
-                    allowClear={false}
-                    className="min-w-[180px]"
-                  />
-                </div>
 
                 {/* Chart Placeholder */}
                 <div className="h-64 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">

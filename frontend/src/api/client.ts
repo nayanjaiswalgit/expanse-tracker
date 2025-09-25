@@ -2,6 +2,7 @@ import axios, { type AxiosInstance } from 'axios';
 import type {
   User,
   Account,
+  BalanceHistory,
   Category,
   Transaction,
   UnifiedTransaction,
@@ -445,6 +446,17 @@ class ApiClient {
     await this.client.delete(`/accounts/${id}/`);
   }
 
+  // Balance History
+  async getAccountBalanceHistory(accountId: number): Promise<BalanceHistory[]> {
+    const response = await this.client.get(`/accounts/${accountId}/balance-history/`);
+    return response.data.results || response.data;
+  }
+
+  async createBalanceHistoryEntry(entry: Omit<BalanceHistory, 'id' | 'created_at' | 'updated_at'>): Promise<BalanceHistory> {
+    const response = await this.client.post('/balance-history/', entry);
+    return response.data;
+  }
+
   // Categories
   async getCategories(): Promise<Category[]> {
     const response = await this.client.get('/categories/');
@@ -471,13 +483,15 @@ class ApiClient {
     return response.data.results || response.data;
   }
 
-  async createGoal(goal: Omit<Goal, 'id' | 'progress_percentage' | 'remaining_amount' | 'is_completed' | 'created_at' | 'updated_at'>): Promise<Goal> {
-    const response = await this.client.post('/goals/', goal);
+  async createGoal(goal: FormData | Omit<Goal, 'id' | 'progress_percentage' | 'remaining_amount' | 'is_completed' | 'created_at' | 'updated_at'>): Promise<Goal> {
+    const headers = goal instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
+    const response = await this.client.post('/goals/', goal, { headers });
     return response.data;
   }
 
-  async updateGoal(id: number, goal: Partial<Goal>): Promise<Goal> {
-    const response = await this.client.patch(`/goals/${id}/`, goal);
+  async updateGoal(id: number, goal: FormData | Partial<Goal>): Promise<Goal> {
+    const headers = goal instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
+    const response = await this.client.patch(`/goals/${id}/`, goal, { headers });
     return response.data;
   }
 
@@ -628,7 +642,7 @@ class ApiClient {
   }
 
   // Upload
-  async uploadFile(file: File, password?: string, accountId?: number): Promise<{ session_id: number; status: string; total_transactions: number }> {
+  async uploadFile(file: File, password?: string, accountId?: number): Promise<UploadSession> {
     const formData = new FormData();
     formData.append('file', file);
     if (password) {
@@ -637,13 +651,13 @@ class ApiClient {
     if (accountId) {
       formData.append('account_id', accountId.toString());
     }
-    
-    const response = await this.client.post('/upload/upload_statement/', formData, {
+
+    const response = await this.client.post('/upload-sessions/upload/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
+
     return response.data;
   }
 
@@ -658,22 +672,39 @@ class ApiClient {
   }
 
   async getUploadSessions(): Promise<UploadSession[]> {
-    const response = await this.client.get('/upload/sessions/');
-    return response.data.sessions || [];
+    const response = await this.client.get('/upload-sessions/');
+    return response.data.results || response.data;
   }
 
   async getUploadStatus(sessionId: number): Promise<UploadSession> {
-    const response = await this.client.get(`/upload/${sessionId}/status/`);
+    const response = await this.client.get(`/upload-sessions/${sessionId}/status/`);
     return response.data;
   }
 
-  async updateUploadSession(sessionId: number, data: { filename?: string }): Promise<UploadSession> {
-    const response = await this.client.patch(`/upload/${sessionId}/`, data);
+  async updateUploadSession(sessionId: number, data: { account_id?: number }): Promise<UploadSession> {
+    const response = await this.client.patch(`/upload-sessions/${sessionId}/update-account/`, data);
     return response.data;
   }
 
   async deleteUploadSession(sessionId: number): Promise<void> {
-    await this.client.delete(`/upload/${sessionId}/`);
+    await this.client.delete(`/upload-sessions/${sessionId}/`);
+  }
+
+  async retryUploadSession(sessionId: number, password?: string): Promise<UploadSession> {
+    const response = await this.client.post(`/upload-sessions/${sessionId}/retry/`, {
+      password: password || ''
+    });
+    return response.data;
+  }
+
+  async getUploadSessionTransactions(sessionId: number): Promise<TransactionImport[]> {
+    const response = await this.client.get(`/upload-sessions/${sessionId}/transactions/`);
+    return response.data;
+  }
+
+  async getUploadStats(): Promise<UploadStats> {
+    const response = await this.client.get('/upload-sessions/stats/');
+    return response.data;
   }
 
   // OCR Receipt Processing

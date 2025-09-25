@@ -13,9 +13,9 @@ class Goal(UserOwnedModel):
 
     GOAL_TYPES = [
         ("savings", "Savings Goal"),
-        ("debt_reduction", "Debt Reduction"),
+        ("spending", "Spending Goal"),
+        ("debt_payoff", "Debt Payoff"),
         ("investment", "Investment Goal"),
-        ("expense_reduction", "Expense Reduction"),
     ]
 
     STATUS_CHOICES = [
@@ -27,10 +27,13 @@ class Goal(UserOwnedModel):
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    goal_type = models.CharField(max_length=20, choices=GOAL_TYPES)
+    goal_type = models.CharField(max_length=20, choices=GOAL_TYPES, null=True, blank=True)
     target_amount = models.DecimalField(max_digits=12, decimal_places=2)
     current_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     target_date = models.DateField(null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    currency = models.CharField(max_length=3, default='USD')
+    color = models.CharField(max_length=7, null=True, blank=True)  # Hex color code
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
 
     class Meta:
@@ -45,10 +48,38 @@ class Goal(UserOwnedModel):
     def progress_percentage(self):
         if self.target_amount <= 0:
             return 0
-        return min(100, (self.current_amount / self.target_amount) * 100)
+        return min(100, float(self.current_amount / self.target_amount) * 100)
+
+    @property
+    def remaining_amount(self):
+        return max(0, self.target_amount - self.current_amount)
+
+    @property
+    def is_completed(self):
+        return self.status == 'completed' or self.current_amount >= self.target_amount
 
     def __str__(self):
         return self.name
+
+
+class GoalImage(TimestampedModel):
+    """Images associated with goals"""
+
+    goal = models.ForeignKey(Goal, on_delete=models.CASCADE, related_name='images')
+    image_url = models.URLField(max_length=500)
+    thumbnail_url = models.URLField(max_length=500, null=True, blank=True)
+    caption = models.TextField(blank=True)
+    is_primary = models.BooleanField(default=False)
+
+    class Meta:
+        app_label = "finance"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["goal", "is_primary"]),
+        ]
+
+    def __str__(self):
+        return f"Image for {self.goal.name}"
 
 
 class GroupExpense(TimestampedModel):

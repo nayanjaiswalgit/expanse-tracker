@@ -13,6 +13,12 @@ from .views import (
     UserBalanceView,
 )
 from .views.expense_group_views import ExpenseGroupViewSet
+from .views.upload_views import (
+    UploadSessionViewSet,
+    TransactionImportViewSet,
+    TransactionLinkViewSet,
+    MerchantPatternViewSet,
+)
 
 # Create router and register viewsets
 router = routers.DefaultRouter()
@@ -21,6 +27,12 @@ router.register(r"investments", InvestmentViewSet, basename="investment")
 router.register(r"goals", GoalViewSet, basename="goal")
 router.register(r"invoices", InvoiceViewSet, basename="invoice")
 router.register(r"expense-groups", ExpenseGroupViewSet, basename="expense-group")
+
+# Upload-related viewsets
+router.register(r"upload-sessions", UploadSessionViewSet, basename="upload-session")
+router.register(r"transaction-imports", TransactionImportViewSet, basename="transaction-import")
+router.register(r"transaction-links", TransactionLinkViewSet, basename="transaction-link")
+router.register(r"merchant-patterns", MerchantPatternViewSet, basename="merchant-pattern")
 
 expense_groups_router = routers.NestedDefaultRouter(
     router, r"expense-groups", lookup="expense_group"

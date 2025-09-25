@@ -12,6 +12,11 @@ import {
   EyeOff,
   Upload as UploadIcon,
   FileText,
+  History,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { SummaryCards } from "../../components/ui/SummaryCards";
 import { FinancePageHeader } from "../../components/ui/FinancePageHeader";
@@ -19,13 +24,16 @@ import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency } from "../../utils/preferences";
 import { Modal } from "../../components/ui/Modal";
 import { Upload } from "./Upload";
-import { useTags } from "./hooks/queries/useTags";
+import { UploadList } from "./UploadList";
 import { Button } from "../../components/ui/Button";
 import type { Account } from "../../types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/client";
+import { useBalanceHistory } from "./hooks/queries/useAccounts";
 import { Alert } from "../../components/ui/Alert";
-import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { useToast } from "../../components/ui/Toast";
+import type { UploadSession } from "../../types";
 
 // Object-driven form imports
 import { ObjectForm } from "../../components/forms/ObjectForm";
@@ -53,9 +61,83 @@ const accountTypeColors = {
   other: "bg-gray-100 text-gray-600",
 };
 
+const CompactUploadList: React.FC = () => {
+  const [sessions, setSessions] = React.useState<UploadSession[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadSessions = async () => {
+      try {
+        const data = await apiClient.getUploadSessions();
+        setSessions(data.slice(0, 10)); // Only show last 10 uploads
+      } catch (error) {
+        console.error('Failed to load upload sessions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSessions();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600"></div>
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="text-center p-8 text-slate-500 dark:text-slate-400">
+        <FileText className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+        <p className="text-sm">No uploads yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {sessions.map((session) => (
+        <div key={session.id} className="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg">
+          <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <div className="flex-shrink-0">
+              {session.status === 'completed' ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : session.status === 'failed' ? (
+                <XCircle className="h-4 w-4 text-red-500" />
+              ) : session.status === 'processing' ? (
+                <Clock className="h-4 w-4 text-blue-500 animate-spin" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-yellow-500" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                {session.original_filename}
+              </p>
+              <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>{session.file_type.toUpperCase()}</span>
+                {session.account_name && <span>→ {session.account_name}</span>}
+                {session.total_transactions > 0 && (
+                  <span className="text-green-600 dark:text-green-400">
+                    {session.successful_imports} imported
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <span className="text-xs text-slate-400">
+            {new Date(session.created_at).toLocaleDateString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const AccountsManagement = () => {
   const { state: authState } = useAuth();
-  const { allTags, setEntityTags } = useTags();
 
   const queryClient = useQueryClient();
 
@@ -120,15 +202,14 @@ export const AccountsManagement = () => {
   const [showBalances, setShowBalances] = useState(true);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+  const [dragOverAccount, setDragOverAccount] = useState<number | null>(null);
+  const { showSuccess, showError } = useToast();
 
-  // Statement filtering state
-  const [selectedAccountFilter, setSelectedAccountFilter] = useState<
-    number | null
-  >(null);
-  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(
-    null
-  );
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAccountSelectModal, setShowAccountSelectModal] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedAccountForHistory, setSelectedAccountForHistory] = useState<Account | null>(null);
+  const [isPageDragOver, setIsPageDragOver] = useState(false);
 
 
 
@@ -183,6 +264,130 @@ export const AccountsManagement = () => {
     }
   };
 
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent, accountId: number) => {
+    e.preventDefault();
+    setDragOverAccount(accountId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverAccount(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, accountId: number) => {
+    e.preventDefault();
+    setDragOverAccount(null);
+
+    const files = Array.from(e.dataTransfer.files);
+    const supportedFiles = files.filter(file =>
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ||
+      file.type === 'application/json' || file.name.toLowerCase().endsWith('.json') ||
+      file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')
+    );
+
+    if (supportedFiles.length === 0) {
+      showError('Invalid file type', 'Please upload PDF, JSON, or CSV files only.');
+      return;
+    }
+
+    // Upload each file to this account
+    for (const file of supportedFiles) {
+      try {
+        showSuccess('Uploading...', `Uploading ${file.name}`);
+        const response = await apiClient.uploadFile(file, undefined, accountId) as any;
+        showSuccess('Upload successful', `${file.name} uploaded to account successfully`);
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.error || 'Upload failed';
+        if (errorMessage.toLowerCase().includes('password')) {
+          showError('Password required', `${file.name} is password protected. Please use the upload modal instead.`);
+        } else {
+          showError('Upload failed', `Failed to upload ${file.name}: ${errorMessage}`);
+        }
+      }
+    }
+  };
+
+  // Page-wide drag and drop handlers
+  const handlePageDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsPageDragOver(true);
+  };
+
+  const handlePageDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only hide if leaving the main container
+    if (e.currentTarget === e.target) {
+      setIsPageDragOver(false);
+    }
+  };
+
+  const handlePageDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsPageDragOver(false);
+
+    if (accounts.length === 0) {
+      showError('No accounts', 'Please add an account first before uploading files.');
+      return;
+    }
+
+    const files = Array.from(e.dataTransfer.files);
+    const supportedFiles = files.filter(file =>
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ||
+      file.type === 'application/json' || file.name.toLowerCase().endsWith('.json') ||
+      file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')
+    );
+
+    if (supportedFiles.length === 0) {
+      showError('Invalid file type', 'Please upload PDF, JSON, or CSV files only.');
+      return;
+    }
+
+    setSelectedFiles(supportedFiles);
+    setShowAccountSelectModal(true);
+  };
+
+  // File upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const supportedFiles = files.filter(file =>
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ||
+      file.type === 'application/json' || file.name.toLowerCase().endsWith('.json') ||
+      file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')
+    );
+
+    if (supportedFiles.length === 0) {
+      showError('Invalid file type', 'Please upload PDF, JSON, or CSV files only.');
+      return;
+    }
+
+    setSelectedFiles(supportedFiles);
+    setShowAccountSelectModal(true);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleAccountSelectForFiles = async (accountId: number) => {
+    setShowAccountSelectModal(false);
+
+    // Upload each file to the selected account
+    for (const file of selectedFiles) {
+      try {
+        showSuccess('Uploading...', `Uploading ${file.name}`);
+        const response = await apiClient.uploadFile(file, undefined, accountId) as any;
+        showSuccess('Upload successful', `${file.name} uploaded successfully`);
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.error || 'Upload failed';
+        if (errorMessage.toLowerCase().includes('password')) {
+          showError('Password required', `${file.name} is password protected and cannot be uploaded via drag & drop.`);
+        } else {
+          showError('Upload failed', `Failed to upload ${file.name}: ${errorMessage}`);
+        }
+      }
+    }
+
+    setSelectedFiles([]);
+  };
+
   const totalBalance = accounts.reduce(
     (sum, account) => sum + parseFloat(account.balance.toString()),
     0
@@ -196,379 +401,249 @@ export const AccountsManagement = () => {
   }, {} as Record<string, Account[]>);
 
   return (
-    <div className="space-y-4">
-      <FinancePageHeader
-        title="💳 Accounts & Statements"
-        subtitle="Manage your accounts and upload bank statements"
-        gradientFrom="blue-600"
-        gradientVia="indigo-600"
-        gradientTo="purple-700"
-        darkGradientFrom="blue-800"
-        darkGradientVia="indigo-800"
-        darkGradientTo="purple-900"
-        subtitleColor="text-blue-100"
-        darkSubtitleColor="text-blue-200"
-        summaryCards={[
-          {
-            id: 'total',
-            label: 'Total',
-            value: accounts.length,
-            icon: Building,
-            iconColor: 'text-blue-300 dark:text-blue-400'
-          },
-          {
-            id: 'active',
-            label: 'Active',
-            value: accounts.filter(acc => acc.is_active !== false).length,
-            icon: CreditCard,
-            iconColor: 'text-indigo-300 dark:text-indigo-400'
-          },
-          {
-            id: 'types',
-            label: 'Types',
-            value: Object.keys(accountTypeGroups).length,
-            icon: Wallet,
-            iconColor: 'text-purple-300 dark:text-purple-400'
-          },
-          {
-            id: 'balance',
-            label: showBalances ? 'Balance' : 'Hidden',
-            value: showBalances ? formatCurrency(totalBalance, authState.user) : '••••',
-            icon: showBalances ? TrendingUp : EyeOff,
-            iconColor: showBalances ? 'text-green-300 dark:text-green-400' : 'text-gray-300 dark:text-gray-400'
-          }
-        ]}
-        buttons={[
-          {
-            label: showBalances ? 'Hide Balances' : 'Show Balances',
-            icon: showBalances ? EyeOff : Eye,
-            onClick: () => setShowBalances(!showBalances),
-            variant: 'ghost-white',
-            className: 'bg-white/20 hover:bg-white/30 text-white border border-white/30 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/20'
-          },
-          {
-            label: 'Add Account',
-            icon: Plus,
-            onClick: () => setShowAddModal(true),
-            variant: 'primary',
-            className: 'bg-white text-blue-600 hover:bg-gray-100 dark:bg-white dark:text-blue-700 dark:hover:bg-gray-200 shadow-lg'
-          }
-        ]}
-      />
-
-      {/* Content */}
-      <div className="space-y-4">
-        {/* Account Summary Cards - Now Clickable Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {Object.entries(accountTypeGroups).map(([type, groupedAccounts]) => {
-            const Icon =
-              accountTypeIcons[type as keyof typeof accountTypeIcons];
-            const total = groupedAccounts.reduce(
-              (sum, acc) => sum + parseFloat(acc.balance.toString()),
-              0
-            );
-            const isFiltered =
-              selectedAccountFilter &&
-              groupedAccounts.some((acc) => acc.id === selectedAccountFilter);
-
-            return (
-              <button
-                key={type}
-                onClick={() => {
-                  // Toggle filter - if already filtered to this type, clear filter, otherwise set to first account of this type
-                  if (isFiltered) {
-                    setSelectedAccountFilter(null);
-                  } else {
-                    setSelectedAccountFilter(groupedAccounts[0]?.id || null);
-                    setSelectedTagFilter(null); // Clear tag filter when account filter is applied
-                  }
-                }}
-                className={`p-4 rounded-2xl shadow-md text-left transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 ${
-                  isFiltered
-                    ? `${
-                        accountTypeColors[
-                          type as keyof typeof accountTypeColors
-                        ]
-                      } ring-2 ring-blue-500 dark:ring-blue-400 shadow-xl scale-105`
-                    : `${
-                        accountTypeColors[
-                          type as keyof typeof accountTypeColors
-                        ]
-                      } hover:opacity-90`
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <Icon className="w-5 h-5" />
-                  <span className="text-xs font-semibold">
-                    {groupedAccounts.length}
-                  </span>
-                </div>
-                <h3 className="text-base font-bold capitalize mb-1">
-                  {type.replace("_", " ")}
-                </h3>
-                {showBalances && (
-                  <p className="text-lg font-bold">
-                    {formatCurrency(total, authState.user)}
-                  </p>
-                )}
-                {isFiltered && (
-                  <p className="text-xs mt-1 opacity-75">Click to show all</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Accounts List */}
-        <div className="theme-card">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold theme-text-primary">
-                Your Accounts
-              </h2>
-              <p className="theme-text-secondary text-sm mt-1">
-                {selectedAccountFilter || selectedTagFilter
-                  ? `Showing filtered accounts`
-                  : `Manage your ${accounts.length} financial accounts`}
+    <div
+      className="space-y-4 relative min-h-screen"
+      onDragOver={handlePageDragOver}
+      onDragLeave={handlePageDragLeave}
+      onDrop={handlePageDrop}
+    >
+      {/* Page-wide drag overlay */}
+      {isPageDragOver && (
+        <div className="fixed inset-0 bg-blue-500 bg-opacity-10 border-4 border-dashed border-blue-400 z-40 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-8 shadow-lg">
+            <div className="text-center">
+              <UploadIcon className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                Drop files to upload
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400">
+                Release to select an account for your files
               </p>
-              {/* Tag Filter */}
-              {allTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="text-xs text-gray-500 font-medium">
-                    Filter by tag:
-                  </span>
-                  {allTags.map((tag) => (
-                    <button
-                      key={tag.name}
-                      onClick={() => {
-                        if (selectedTagFilter === tag.name) {
-                          setSelectedTagFilter(null);
-                        } else {
-                          setSelectedTagFilter(tag.name);
-                          setSelectedAccountFilter(null); // Clear account filter when tag filter is applied
-                        }
-                      }}
-                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                        selectedTagFilter === tag.name
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      {tag.name} ({tag.usage_count})
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              {(selectedAccountFilter || selectedTagFilter) && (
-                <Button
-                  onClick={() => {
-                    setSelectedAccountFilter(null);
-                    setSelectedTagFilter(null);
-                  }}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Clear Filters
-                </Button>
-              )}
             </div>
           </div>
+        </div>
+      )}
 
-          {isLoadingAccounts ? (
-            <div className="flex items-center justify-center h-48">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          ) : accountsError ? (
-            <Alert variant="error" title="Error loading accounts">
-              {accountsError.message}
-            </Alert>
-          ) : accounts.length === 0 ? (
-            <div className="p-12 text-center">
-              <CreditCard className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-              <h3 className="text-xl font-medium text-gray-900 mb-3">
-                No accounts yet
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Add your first account to start tracking your finances
-              </p>
-              <Button onClick={() => setShowAddModal(true)} size="lg">
-                Add Your First Account
-              </Button>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {accounts
-                .filter((account) => {
-                  if (
-                    selectedAccountFilter &&
-                    account.id !== selectedAccountFilter
-                  )
-                    return false;
-                  if (
-                    selectedTagFilter &&
-                    (!account.tags || !account.tags.includes(selectedTagFilter))
-                  )
-                    return false;
-                  return true;
-                })
-                .map((account) => {
-                  const Icon = accountTypeIcons[account.account_type];
-
-                  return (
-                    <div
-                      key={account.id}
-                      className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div
-                            className={`p-3 rounded-full ${
-                              accountTypeColors[account.account_type]
-                            }`}
-                          >
-                            <Icon className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold theme-text-primary">
-                              {account.name}
-                            </h3>
-                            <div className="flex items-center space-x-3 text-sm theme-text-secondary">
-                              <span className="capitalize">
-                                {account.account_type.replace("_", " ")}
-                              </span>
-                              <span>•</span>
-                              <span>{account.currency}</span>
-                              {account.institution && (
-                                <>
-                                  <span>•</span>
-                                  <span>{account.institution}</span>
-                                </>
-                              )}
-                              {account.account_number_last4 && (
-                                <>
-                                  <span>•</span>
-                                  <span>
-                                    ****{account.account_number_last4}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                            {account.tags && account.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {account.tags.map((tag, index) => (
-                                  <span
-                                    key={index}
-                                    className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-4">
-                          {showBalances && (
-                            <div className="text-right">
-                              <div
-                                className={`text-2xl font-bold ${
-                                  parseFloat(account.balance.toString()) >= 0
-                                    ? "text-green-600 dark:text-green-400"
-                                    : "text-red-600 dark:text-red-400"
-                                }`}
-                              >
-                                {formatCurrency(
-                                  parseFloat(account.balance.toString()),
-                                  authState.user
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              onClick={() => {
-                                setEditingAccount(account);
-                                setShowAddModal(true);
-                              }}
-                              variant="ghost"
-                              size="sm"
-                              title="Edit account"
-                            >
-                              <Edit2 className="w-5 h-5" />
-                            </Button>
-                            <Button
-                              onClick={() => handleDelete(account)}
-                              variant="ghost"
-                              size="sm"
-                              title="Delete account"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+      {/* Clean Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Accounts</h1>
+          <div className="flex items-center gap-4 mt-2">
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              {accounts.length} accounts • Total: {showBalances ? formatCurrency(totalBalance, authState.user) : '••••••'}
+            </span>
+            <button
+              onClick={() => setShowBalances(!showBalances)}
+              className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            >
+              {showBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHistoryModal(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            title="Upload History"
+          >
+            <History className="w-4 h-4" />
+          </button>
+          {accounts.length > 0 && (
+            <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer">
+              <UploadIcon className="w-4 h-4" />
+              Upload Files
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.json,.csv"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </label>
           )}
-        </div>
-
-        {/* Upload Statements Section */}
-        <div className="theme-card">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold theme-text-primary flex items-center">
-                  <UploadIcon className="w-6 h-6 mr-3 text-blue-600" />
-                  Bank Statements
-                </h2>
-                <p className="theme-text-secondary text-sm mt-1">
-                  Upload and manage your bank statements
-                  {selectedAccountFilter &&
-                    ` for ${
-                      accounts.find((acc) => acc.id === selectedAccountFilter)
-                        ?.name
-                    }`}
-                </p>
-              </div>
-              <Button onClick={() => setShowUploadModal(true)}>
-                <UploadIcon className="w-4 h-4 mr-2" />
-                Upload Statement
-              </Button>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="text-center py-8">
-              <FileText className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-              <h3 className="text-lg font-medium theme-text-primary mb-2">
-                No statements uploaded yet
-              </h3>
-              <p className="theme-text-secondary mb-4">
-                Upload your bank statements to automatically import transactions
-              </p>
-              <p className="text-xs theme-text-muted">
-                Supports PDF bank statements, CSV, and JSON files
-              </p>
-            </div>
-          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 dark:bg-slate-700 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Account
+          </button>
         </div>
       </div>
 
-      {/* Upload Modal */}
-      <Modal
-        isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        title="Upload Bank Statements"
-        size="xl"
-      >
-        <Upload />
-      </Modal>
+      {/* Accounts Section */}
+      <div className="mb-8">
+        {isLoadingAccounts ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-slate-400"></div>
+          </div>
+        ) : accountsError ? (
+          <Alert variant="error" title="Error loading accounts">
+            {accountsError.message}
+          </Alert>
+        ) : accounts.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <CreditCard className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+              No accounts yet
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400 mb-6">
+              Add your first account to start tracking your finances
+            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-slate-900 dark:bg-slate-700 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Your First Account
+            </button>
+          </div>
+        ) : (
+          <div>
+            {accounts.map((account) => {
+                const Icon = accountTypeIcons[account.account_type];
+                const balance = parseFloat(account.balance.toString());
+                const isDraggedOver = dragOverAccount === account.id;
+
+                return (
+                  <div
+                    key={account.id}
+                    className={`flex items-center justify-between py-3 px-4 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 group transition-colors ${
+                      isDraggedOver
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600'
+                        : ''
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, account.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, account.id)}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`w-6 h-6 rounded flex items-center justify-center ${accountTypeColors[account.account_type]}`}>
+                        <Icon className="w-3 h-3" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-slate-900 dark:text-white">
+                          {account.name}
+                        </span>
+                        <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">
+                          {account.currency}
+                          {account.institution && ` • ${account.institution}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {showBalances && (
+                        <span className={`font-medium ${
+                          balance >= 0
+                            ? 'text-slate-900 dark:text-white'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {formatCurrency(balance, authState.user)}
+                        </span>
+                      )}
+
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingAccount(account);
+                            setShowAddModal(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAccountForHistory(account);
+                            setShowHistoryModal(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-blue-500 ml-1"
+                          title="Balance History"
+                        >
+                          <History className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(account);
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-500 ml-1"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+
+
+      {/* Account Selection Modal */}
+      {showAccountSelectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-96">
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4">
+              Select Account for {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+            </h3>
+            <div className="space-y-3 mb-6">
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="text-sm text-slate-600 dark:text-slate-400 truncate">
+                  • {file.name}
+                </div>
+              ))}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-white mb-2">
+                  Account
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-lg">
+                  {accounts.map((account) => {
+                    const Icon = accountTypeIcons[account.account_type];
+                    return (
+                      <button
+                        key={account.id}
+                        onClick={() => handleAccountSelectForFiles(account.id)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-200 dark:border-slate-700 last:border-0"
+                      >
+                        <div className={`w-6 h-6 rounded flex items-center justify-center ${accountTypeColors[account.account_type]}`}>
+                          <Icon className="w-3 h-3" />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-medium text-slate-900 dark:text-white">{account.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{account.account_type}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowAccountSelectModal(false);
+                    setSelectedFiles([]);
+                  }}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Account Modal */}
       <Modal
@@ -602,15 +677,141 @@ export const AccountsManagement = () => {
         />
       </Modal>
 
-      <ConfirmationModal
+      <ConfirmDialog
         isOpen={showConfirmDelete}
         onClose={() => setShowConfirmDelete(false)}
         onConfirm={confirmDelete}
-        title="Confirm Deletion"
+        title="Delete Account"
+        message={`Are you sure you want to delete the account "${accountToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Upload History Modal */}
+      <Modal
+        isOpen={showHistoryModal}
+        title="Upload History"
+        onClose={() => setShowHistoryModal(false)}
+        size="lg"
       >
-        Are you sure you want to delete the account "{accountToDelete?.name}"?
-        This action cannot be undone.
-      </ConfirmationModal>
+        <div className="h-64 overflow-y-auto">
+          <CompactUploadList />
+        </div>
+      </Modal>
+
+      {/* Balance History Modal */}
+      <Modal
+        isOpen={showHistoryModal}
+        title={`Balance History - ${selectedAccountForHistory?.name}`}
+        onClose={() => {
+          setShowHistoryModal(false);
+          setSelectedAccountForHistory(null);
+        }}
+        size="lg"
+      >
+        <BalanceHistoryContent
+          account={selectedAccountForHistory}
+          onClose={() => {
+            setShowHistoryModal(false);
+            setSelectedAccountForHistory(null);
+          }}
+        />
+      </Modal>
+    </div>
+  );
+};
+
+// Balance History Modal Content Component
+const BalanceHistoryContent: React.FC<{
+  account: Account | null;
+  onClose: () => void;
+}> = ({ account, onClose }) => {
+  const balanceHistoryQuery = useBalanceHistory(account?.id || 0);
+  const { state: authState } = useAuth();
+
+  if (!account) return null;
+
+  if (balanceHistoryQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading balance history...</span>
+      </div>
+    );
+  }
+
+  if (balanceHistoryQuery.error) {
+    return (
+      <div className="text-center p-8">
+        <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
+        <p className="text-red-600 dark:text-red-400">Failed to load balance history</p>
+        <Button onClick={onClose} className="mt-4" variant="outline">Close</Button>
+      </div>
+    );
+  }
+
+  const history = balanceHistoryQuery.data || [];
+
+  return (
+    <div className="space-y-4">
+      {/* Current Balance */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Current Balance</h4>
+        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+          {formatCurrency(parseFloat(account.balance), authState.user)}
+        </p>
+      </div>
+
+      {/* History List */}
+      <div className="space-y-2 max-h-96 overflow-y-auto">
+        <h4 className="font-medium text-gray-900 dark:text-white mb-3">Balance Changes</h4>
+
+        {history.length === 0 ? (
+          <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+            <History className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+            <p>No balance changes recorded yet</p>
+          </div>
+        ) : (
+          history.map((entry) => {
+            const changeAmount = parseFloat(entry.change_amount);
+            const isIncrease = changeAmount > 0;
+
+            return (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${isIncrease ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {entry.reason.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                  </div>
+                  {entry.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 ml-4 mt-1">
+                      {entry.description}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 dark:text-gray-500 ml-4">
+                    {new Date(entry.created_at).toLocaleDateString()} at {new Date(entry.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className={`font-semibold ${isIncrease ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {isIncrease ? '+' : ''}{formatCurrency(Math.abs(changeAmount), authState.user)}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Balance: {formatCurrency(parseFloat(entry.new_balance), authState.user)}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };

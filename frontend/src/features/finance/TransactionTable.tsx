@@ -24,7 +24,7 @@ import { sanitizeInput } from '../../utils/security';
 import { apiClient } from 'src/api/client';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
-import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 const columnHelper = createColumnHelper<Transaction>();
 
@@ -255,7 +255,7 @@ export const TransactionTable = () => {
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="text-sm cursor-pointer hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center"
+        className="text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md transition-colors duration-150 flex items-center"
       >
         {value || <span className="theme-text-muted italic">{placeholder}</span>}
       </div>
@@ -293,10 +293,10 @@ export const TransactionTable = () => {
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-blue-50 rounded-md flex items-center transition-colors duration-150"
+        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md flex items-center transition-colors duration-150"
       >
         {selectedOption ? (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
             {selectedOption.label}
           </span>
         ) : (
@@ -336,7 +336,7 @@ export const TransactionTable = () => {
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-blue-50 rounded-md flex items-center transition-colors duration-150"
+        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md flex items-center transition-colors duration-150"
       >
         <span className="theme-text-primary font-medium">
           {new Date(value).toLocaleDateString()}
@@ -361,9 +361,9 @@ export const TransactionTable = () => {
               size="sm"
             >
               {allSelected ? (
-                <CheckSquare className="h-4 w-4 text-blue-600" />
+                <CheckSquare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               ) : someSelected ? (
-                <div className="h-4 w-4 bg-blue-600 border border-blue-600 rounded flex items-center justify-center">
+                <div className="h-4 w-4 bg-primary-600 border border-primary-600 rounded flex items-center justify-center">
                   <div className="h-2 w-2 bg-white rounded-sm"></div>
                 </div>
               ) : (
@@ -382,7 +382,7 @@ export const TransactionTable = () => {
               className="theme-btn-icon"
             >
               {isSelected ? (
-                <CheckSquare className="h-4 w-4 text-blue-600" />
+                <CheckSquare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               ) : (
                 <Square className="h-4 w-4 theme-text-muted" />
               )}
@@ -422,7 +422,7 @@ export const TransactionTable = () => {
           transaction={row.original}
           field="account_id"
           value={getValue()}
-          options={accountsQuery.data || [].map(acc => ({ value: acc.id, label: acc.name }))}
+          options={(accountsQuery.data || []).map(acc => ({ value: acc.id, label: acc.name }))}
           placeholder="Select account"
         />
       ),
@@ -435,7 +435,7 @@ export const TransactionTable = () => {
           transaction={row.original}
           field="category_id"
           value={getValue()}
-          options={categoriesQuery.data || [].map(cat => ({ value: cat.id, label: cat.name }))}
+          options={(categoriesQuery.data || []).map(cat => ({ value: cat.id, label: cat.name }))}
           placeholder="No category"
         />
       ),
@@ -470,7 +470,7 @@ export const TransactionTable = () => {
         return (
           <div
             onClick={() => startEditing(row.original.id, 'amount', value)}
-            className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-blue-50 rounded-md text-right flex items-center justify-end transition-colors duration-150"
+            className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md text-right flex items-center justify-end transition-colors duration-150"
           >
             <span className={`font-medium ${parseFloat(value) > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {parseFloat(value) > 0 ? '+' : ''}{formatCurrency(parseFloat(value), authState.user)}
@@ -500,7 +500,7 @@ export const TransactionTable = () => {
         return (
           <div 
             onClick={() => startEditing(row.original.id, 'tags', value)}
-            className="flex flex-wrap gap-1 px-3 py-2 min-h-[36px] cursor-pointer hover:bg-blue-50 rounded-md transition-colors duration-150 items-center"
+            className="flex flex-wrap gap-1 px-3 py-2 min-h-[36px] cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md transition-colors duration-150 items-center"
           >
             {value.length > 0 ? (
               value.map((tag, index) => (
@@ -553,7 +553,7 @@ export const TransactionTable = () => {
         return (
           <div
             onClick={() => startEditing(row.original.id, 'verified', value)}
-            className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-blue-50 rounded-md flex items-center transition-colors duration-150"
+            className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md flex items-center transition-colors duration-150"
           >
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
               value 
@@ -1098,7 +1098,7 @@ export const TransactionTable = () => {
             }
             <button 
               onClick={() => window.location.href = '/transactions'}
-              className="text-blue-600 underline ml-1"
+              className="text-primary-600 dark:text-primary-400 underline ml-1"
             >
               View all transactions
             </button>
@@ -1113,7 +1113,7 @@ export const TransactionTable = () => {
           <div className="flex items-center gap-2 text-sm theme-text-secondary">
             <span>{table.getRowModel().rows.length} total</span>
             {selectedRows.size > 0 && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
+              <span className="px-2 py-1 bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200 rounded text-xs">
                 {selectedRows.size} selected
               </span>
             )}
@@ -1127,7 +1127,7 @@ export const TransactionTable = () => {
             }}
             variant="primary"
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+            className="bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white"
           >
             <Plus className="w-4 h-4 mr-1" />
             Add
@@ -1190,12 +1190,12 @@ export const TransactionTable = () => {
 
         {/* Selection Actions Bar */}
         {selectedRows.size > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-primary-50 dark:bg-primary-950/50 border border-primary-200 dark:border-primary-800 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+                <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
               </div>
-              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              <span className="text-sm font-medium text-primary-900 dark:text-primary-100">
                 {selectedRows.size} transaction{selectedRows.size !== 1 ? 's' : ''} selected
               </span>
             </div>
@@ -1207,7 +1207,7 @@ export const TransactionTable = () => {
                 }}
                 variant="outline"
                 size="sm"
-                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                className="border-primary-300 text-primary-700 hover:bg-primary-100 dark:border-primary-700 dark:text-primary-300 dark:hover:bg-primary-900"
               >
                 Edit Selected
               </Button>
@@ -1218,7 +1218,7 @@ export const TransactionTable = () => {
                 }}
                 variant="outline"
                 size="sm"
-                className="border-red-300 text-red-700 hover:bg-red-100"
+                className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900"
               >
                 Delete Selected
               </Button>
@@ -1245,8 +1245,8 @@ export const TransactionTable = () => {
                           <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
                           {header.column.getCanSort() && (
                             <div className="flex flex-col ml-2">
-                              <ChevronUp className={`h-3 w-3 ${header.column.getIsSorted() === 'asc' ? 'text-blue-600' : 'text-gray-400'}`} />
-                              <ChevronDown className={`h-3 w-3 -mt-1 ${header.column.getIsSorted() === 'desc' ? 'text-blue-600' : 'text-gray-400'}`} />
+                              <ChevronUp className={`h-3 w-3 ${header.column.getIsSorted() === 'asc' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'}`} />
+                              <ChevronDown className={`h-3 w-3 -mt-1 ${header.column.getIsSorted() === 'desc' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'}`} />
                             </div>
                           )}
                         </div>
@@ -1271,7 +1271,7 @@ export const TransactionTable = () => {
                         </div>
                         <Button
                           onClick={() => setShowAddTransactionModal(true)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          className="bg-primary-600 hover:bg-primary-700 text-white"
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Your First Transaction
@@ -1285,8 +1285,8 @@ export const TransactionTable = () => {
                       key={row.id}
                       className={`
                         group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200
-                        ${editingCell?.id === row.original.id.toString() ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-800' : ''}
-                        ${selectedRows.has(row.original.id) ? 'bg-blue-50 dark:bg-blue-950/30' : ''}
+                        ${editingCell?.id === row.original.id.toString() ? 'bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-200 dark:ring-primary-800' : ''}
+                        ${selectedRows.has(row.original.id) ? 'bg-primary-50 dark:bg-primary-950/30' : ''}
                       `}
                     >
                       {row.getVisibleCells().map(cell => (
@@ -1316,7 +1316,7 @@ export const TransactionTable = () => {
                 </div>
                 <Button
                   onClick={() => setShowAddTransactionModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-primary-600 hover:bg-primary-700 text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Transaction
@@ -1334,8 +1334,8 @@ export const TransactionTable = () => {
                     key={row.id}
                     className={`
                       bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4 shadow-sm
-                      ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''}
-                      ${editingCell?.id === transaction.id.toString() ? 'ring-2 ring-blue-300' : ''}
+                      ${isSelected ? 'ring-2 ring-primary-500 border-primary-500' : ''}
+                      ${editingCell?.id === transaction.id.toString() ? 'ring-2 ring-primary-300 dark:ring-primary-700' : ''}
                     `}
                   >
                     {/* Mobile Transaction Card Header */}
@@ -1343,10 +1343,10 @@ export const TransactionTable = () => {
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => handleRowSelection(transaction.id, !isSelected)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          className="text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                         >
                           {isSelected ? (
-                            <CheckSquare className="w-5 h-5 text-blue-600" />
+                            <CheckSquare className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                           ) : (
                             <Square className="w-5 h-5" />
                           )}
@@ -1453,7 +1453,7 @@ export const TransactionTable = () => {
       >
         {splitTransaction && (
           <div className="space-y-4">
-            <div className="bg-gray-50 p-3 rounded">
+            <div className="bg-secondary-50 dark:bg-secondary-800 p-3 rounded">
               <div className="text-sm theme-text-secondary">
                 <div>Transaction: {splitTransaction.description}</div>
                 <div>Amount: ${Math.abs(parseFloat(splitTransaction.amount)).toFixed(2)}</div>
@@ -1517,7 +1517,7 @@ export const TransactionTable = () => {
                   }))}
                   options={[
                     { value: "", label: "Keep current accounts" },
-                    ...accountsQuery.data || [].map((account) => ({ value: account.id, label: `${account.name} (${account.account_type}) - ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}` }))
+                    ...(accountsQuery.data || []).map((account) => ({ value: account.id, label: `${account.name} (${account.account_type}) - ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}` }))
                   ]}
                 />
               </div>
@@ -1533,7 +1533,7 @@ export const TransactionTable = () => {
                   }))}
                   options={[
                     { value: "", label: "Keep current categories" },
-                    ...categoriesQuery.data || [].map((category) => ({ value: category.id, label: category.name }))
+                    ...(categoriesQuery.data || []).map((category) => ({ value: category.id, label: category.name }))
                   ]}
                 />
               </div>
@@ -1615,7 +1615,7 @@ export const TransactionTable = () => {
                 <span className="theme-text-secondary">Recent: {actionHistory[0].action}</span>
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="text-blue-600 hover:text-blue-700"
+                  className="text-primary-600 dark:text-primary-400 hover:text-blue-700"
                 >
                   {showHistory ? 'Hide' : `View all (${actionHistory.length})`}
                 </button>
@@ -1647,8 +1647,8 @@ export const TransactionTable = () => {
               onClick={() => setSelectedAddOption('scan')}
               className={`text-sm font-medium transition-colors ${
                 selectedAddOption === 'scan'
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
+                  ? 'text-primary-600 dark:text-primary-400 dark:text-blue-400'
+                  : 'text-primary-600 dark:text-primary-400 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
               }`}
             >
               Scan Receipt
@@ -1658,8 +1658,8 @@ export const TransactionTable = () => {
               onClick={() => setSelectedAddOption('upload')}
               className={`text-sm font-medium transition-colors ${
                 selectedAddOption === 'upload'
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
+                  ? 'text-primary-600 dark:text-primary-400 dark:text-blue-400'
+                  : 'text-primary-600 dark:text-primary-400 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
               }`}
             >
               Upload File
@@ -1766,7 +1766,7 @@ export const TransactionTable = () => {
               <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
                   onClick={handleAddTransactions}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-6"
                 >
                   Add Transaction(s)
                 </Button>
@@ -1802,7 +1802,7 @@ export const TransactionTable = () => {
                     Process invoices and business documents with advanced OCR technology.
                   </p>
                   <Link to="/invoice-ocr">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button className="w-full bg-primary-600 hover:bg-primary-700 text-white">
                       Open Invoice OCR
                     </Button>
                   </Link>
@@ -1812,7 +1812,7 @@ export const TransactionTable = () => {
               <div className="flex justify-center pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setSelectedAddOption('transaction')}
-                  className="text-blue-600 hover:text-blue-700"
+                  className="text-primary-600 dark:text-primary-400 hover:text-blue-700"
                 >
                   ← Back to Manual Entry
                 </button>
@@ -1854,7 +1854,7 @@ export const TransactionTable = () => {
               <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded p-6 text-center hover:border-blue-400 transition-colors">
                 <Upload className="mx-auto h-12 w-12 theme-text-muted mb-3" />
                 <label className="cursor-pointer">
-                  <span className="text-blue-600 hover:text-blue-700 font-medium">
+                  <span className="text-primary-600 dark:text-primary-400 hover:text-blue-700 font-medium">
                     Choose file to upload
                   </span>
                   <input
@@ -1878,7 +1878,7 @@ export const TransactionTable = () => {
               <div className="flex justify-center pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setSelectedAddOption('transaction')}
-                  className="text-blue-600 hover:text-blue-700"
+                  className="text-primary-600 dark:text-primary-400 hover:text-blue-700"
                 >
                   ← Back to Manual Entry
                 </button>
@@ -1899,14 +1899,16 @@ export const TransactionTable = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDeleteTransactions}
         title="Delete Transactions"
-      >
-        Are you sure you want to delete {selectedRows.size} transaction{selectedRows.size !== 1 ? 's' : ''}? This action cannot be undone.
-      </ConfirmationModal>
+        message={`Are you sure you want to delete ${selectedRows.size} transaction${selectedRows.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };
