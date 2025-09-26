@@ -99,8 +99,11 @@ export const TransactionTable = () => {
     const data = transactionsQuery.data || [];
     return Array.isArray(data) ? data : (data.results || []);
   }, [transactionsQuery.data]);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [editingCell, setEditingCell] = useState<{id: string, field: string} | null>(null);
   const [editingData, setEditingData] = useState<Partial<Transaction>>({});
+  const [stagedChanges, setStagedChanges] = useState<Map<number, Partial<Transaction>>>(new Map());
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -161,19 +164,55 @@ export const TransactionTable = () => {
 
   // Helper functions for inline editing - memoized callbacks
   const startEditing = useCallback((transactionId: number, field: string, currentValue: unknown) => {
+    if (!isEditMode) return; // Only allow editing when edit mode is enabled
     setEditingCell({ id: transactionId.toString(), field });
-    setEditingData({ [field]: currentValue });
+
+    // Use staged value if available, otherwise use current value
+    const stagedData = stagedChanges.get(transactionId);
+    const valueToEdit = stagedData && field in stagedData ? stagedData[field] : currentValue;
+    setEditingData({ [field]: valueToEdit });
+  }, [isEditMode, stagedChanges]);
+
+  // Stage field changes locally instead of immediately saving
+  const stageFieldChange = useCallback((transactionId: number, field: string, value: unknown) => {
+    setStagedChanges(prev => {
+      const newChanges = new Map(prev);
+      const existingChanges = newChanges.get(transactionId) || {};
+      newChanges.set(transactionId, { ...existingChanges, [field]: value });
+      return newChanges;
+    });
+    setHasUnsavedChanges(true);
+    setEditingCell(null);
+    setEditingData({});
   }, []);
 
-  const saveField = useCallback(async (transactionId: number, field: string, value: unknown) => {
+  // Save all staged changes in bulk
+  const saveAllChanges = useCallback(async () => {
+    if (stagedChanges.size === 0) return;
+
     try {
-      await updateTransactionMutation.mutateAsync({ id: transactionId, data: { [field]: value } });
-      setEditingCell(null);
-      setEditingData({});
+      const updatePromises = Array.from(stagedChanges.entries()).map(([id, changes]) =>
+        updateTransactionMutation.mutateAsync({ id, data: changes })
+      );
+
+      await Promise.all(updatePromises);
+
+      setStagedChanges(new Map());
+      setHasUnsavedChanges(false);
+      showSuccess('Changes saved', `Updated ${stagedChanges.size} transaction${stagedChanges.size !== 1 ? 's' : ''} successfully.`);
     } catch (error) {
-      console.error('Failed to update transaction:', error);
+      console.error('Failed to save changes:', error);
+      showError('Failed to save changes', 'Please try again.');
     }
-  }, [updateTransactionMutation]);
+  }, [stagedChanges, updateTransactionMutation, showSuccess, showError]);
+
+  // Discard all staged changes
+  const discardChanges = useCallback(() => {
+    setStagedChanges(new Map());
+    setHasUnsavedChanges(false);
+    setEditingCell(null);
+    setEditingData({});
+  }, []);
 
   const cancelEditing = useCallback(() => {
     setEditingCell(null);
@@ -235,27 +274,34 @@ export const TransactionTable = () => {
 
     if (isEditing) {
       return (
-        <Input
-          type="text"
-          value={(editingData as Record<string, unknown>)[field] as string || value || ''}
-          onChange={(e) => setEditingData(prev => ({ ...prev, [field]: e.target.value }))}
-          onBlur={() => saveField(transaction.id, field, (editingData as Record<string, unknown>)[field] || value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              saveField(transaction.id, field, (editingData as Record<string, unknown>)[field] || value);
-            } else if (e.key === 'Escape') {
-              cancelEditing();
-            }
-          }}
-          autoFocus
-        />
+        <div className="absolute inset-0 z-50 flex items-center">
+          <Input
+            type="text"
+            value={(editingData as Record<string, unknown>)[field] as string || value || ''}
+            onChange={(e) => setEditingData(prev => ({ ...prev, [field]: e.target.value }))}
+            onBlur={() => stageFieldChange(transaction.id, field, (editingData as Record<string, unknown>)[field] || value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                stageFieldChange(transaction.id, field, (editingData as Record<string, unknown>)[field] || value);
+              } else if (e.key === 'Escape') {
+                cancelEditing();
+              }
+            }}
+            className="w-full"
+            autoFocus
+          />
+        </div>
       );
     }
 
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md transition-colors duration-150 flex items-center"
+        className={`text-sm transition-colors duration-150 flex items-center rounded-md ${
+          isEditMode
+            ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+            : 'cursor-default'
+        }`}
       >
         {value || <span className="theme-text-muted italic">{placeholder}</span>}
       </div>
@@ -273,19 +319,31 @@ export const TransactionTable = () => {
 
     if (isEditing) {
       return (
-        <Select
-          value={(editingData as Record<string, unknown>)[field] !== undefined ? (editingData as Record<string, unknown>)[field] as string : value as string || ''}
-          onChange={(newValue) => {
-            const processedValue = newValue || undefined;
-            setEditingData(prev => ({ ...prev, [field]: processedValue }));
-            saveField(transaction.id, field, processedValue);
-          }}
-          options={options}
-          placeholder={placeholder}
-          searchable={true}
-          allowClear={true}
-          className="min-w-[140px]"
-        />
+        <div className="absolute inset-0 z-50 flex items-center">
+          <div className="w-full">
+            <Select
+              value={(editingData as Record<string, unknown>)[field] !== undefined ? (editingData as Record<string, unknown>)[field] as string : value as string || ''}
+              onChange={(newValue) => {
+                const processedValue = newValue || undefined;
+                setEditingData(prev => ({ ...prev, [field]: processedValue }));
+                stageFieldChange(transaction.id, field, processedValue);
+              }}
+              onBlur={() => {
+                // Auto-save on blur
+                const currentValue = (editingData as Record<string, unknown>)[field];
+                if (currentValue !== undefined) {
+                  stageFieldChange(transaction.id, field, currentValue);
+                }
+              }}
+              options={options}
+              placeholder={placeholder}
+              searchable={true}
+              allowClear={true}
+              className="w-full"
+              autoFocus
+            />
+          </div>
+        </div>
       );
     }
 
@@ -293,7 +351,11 @@ export const TransactionTable = () => {
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md flex items-center transition-colors duration-150"
+        className={`px-3 py-2 min-h-[36px] text-sm rounded-md flex items-center transition-colors duration-150 ${
+          isEditMode
+            ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+            : 'cursor-default'
+        }`}
       >
         {selectedOption ? (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
@@ -316,27 +378,34 @@ export const TransactionTable = () => {
 
     if (isEditing) {
       return (
-        <Input
-          type="date"
-          value={(editingData as Record<string, unknown>)[field] as string || value || ''}
-          onChange={(e) => setEditingData(prev => ({ ...prev, [field]: e.target.value }))}
-          onBlur={() => saveField(transaction.id, field, (editingData as Record<string, unknown>)[field] || value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              saveField(transaction.id, field, (editingData as Record<string, unknown>)[field] || value);
-            } else if (e.key === 'Escape') {
-              cancelEditing();
-            }
-          }}
-          autoFocus
-        />
+        <div className="absolute inset-0 z-50 flex items-center">
+          <Input
+            type="date"
+            value={(editingData as Record<string, unknown>)[field] as string || value || ''}
+            onChange={(e) => setEditingData(prev => ({ ...prev, [field]: e.target.value }))}
+            onBlur={() => stageFieldChange(transaction.id, field, (editingData as Record<string, unknown>)[field] || value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                stageFieldChange(transaction.id, field, (editingData as Record<string, unknown>)[field] || value);
+              } else if (e.key === 'Escape') {
+                cancelEditing();
+              }
+            }}
+            className="w-full"
+            autoFocus
+          />
+        </div>
       );
     }
 
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md flex items-center transition-colors duration-150"
+        className={`px-3 py-2 min-h-[36px] text-sm rounded-md flex items-center transition-colors duration-150 ${
+          isEditMode
+            ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+            : 'cursor-default'
+        }`}
       >
         <span className="theme-text-primary font-medium">
           {new Date(value).toLocaleDateString()}
@@ -422,7 +491,11 @@ export const TransactionTable = () => {
           transaction={row.original}
           field="account_id"
           value={getValue()}
-          options={(accountsQuery.data || []).map(acc => ({ value: acc.id, label: acc.name }))}
+          options={(() => {
+            const accounts = accountsQuery.data || [];
+            const accountList = Array.isArray(accounts) ? accounts : (accounts.results || []);
+            return accountList.map(acc => ({ value: acc.id, label: acc.name }));
+          })()}
           placeholder="Select account"
         />
       ),
@@ -435,7 +508,11 @@ export const TransactionTable = () => {
           transaction={row.original}
           field="category_id"
           value={getValue()}
-          options={(categoriesQuery.data || []).map(cat => ({ value: cat.id, label: cat.name }))}
+          options={(() => {
+            const categories = categoriesQuery.data || [];
+            const categoryList = Array.isArray(categories) ? categories : (categories.results || []);
+            return categoryList.map(cat => ({ value: cat.id, label: cat.name }));
+          })()}
           placeholder="No category"
         />
       ),
@@ -449,28 +526,35 @@ export const TransactionTable = () => {
         
         if (isEditing) {
           return (
-            <Input
-              type="number"
-              step="0.01"
-              value={editingData.amount !== undefined ? editingData.amount : value || ''}
-              onChange={(e) => setEditingData(prev => ({ ...prev, amount: e.target.value }))}
-              onBlur={() => saveField(row.original.id, 'amount', editingData.amount || value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  saveField(row.original.id, 'amount', editingData.amount || value);
-                } else if (e.key === 'Escape') {
-                  cancelEditing();
-                }
-              }}
-              autoFocus
-            />
+            <div className="absolute inset-0 z-50 flex items-center">
+              <Input
+                type="number"
+                step="0.01"
+                value={editingData.amount !== undefined ? editingData.amount : value || ''}
+                onChange={(e) => setEditingData(prev => ({ ...prev, amount: e.target.value }))}
+                onBlur={() => stageFieldChange(row.original.id, 'amount', editingData.amount || value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    stageFieldChange(row.original.id, 'amount', editingData.amount || value);
+                  } else if (e.key === 'Escape') {
+                    cancelEditing();
+                  }
+                }}
+                className="w-full text-right"
+                autoFocus
+              />
+            </div>
           );
         }
         
         return (
           <div
             onClick={() => startEditing(row.original.id, 'amount', value)}
-            className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md text-right flex items-center justify-end transition-colors duration-150"
+            className={`px-3 py-2 min-h-[36px] text-sm rounded-md text-right flex items-center justify-end transition-colors duration-150 ${
+              isEditMode
+                ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+                : 'cursor-default'
+            }`}
           >
             <span className={`font-medium ${parseFloat(value) > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {parseFloat(value) > 0 ? '+' : ''}{formatCurrency(parseFloat(value), authState.user)}
@@ -489,18 +573,26 @@ export const TransactionTable = () => {
         
         if (isEditing) {
           return (
-            <TagInput
-              tags={editingData.tags || value}
-              onTagsChange={(newTags) => setEditingData(prev => ({ ...prev, tags: newTags }))}
-              onBlur={() => saveField(row.original.id, 'tags', editingData.tags || value)}
-            />
+            <div className="absolute inset-0 z-50 flex items-center">
+              <div className="w-full">
+                <TagInput
+                  tags={editingData.tags || value}
+                  onTagsChange={(newTags) => setEditingData(prev => ({ ...prev, tags: newTags }))}
+                  onBlur={() => stageFieldChange(row.original.id, 'tags', editingData.tags || value)}
+                />
+              </div>
+            </div>
           );
         }
         
         return (
-          <div 
+          <div
             onClick={() => startEditing(row.original.id, 'tags', value)}
-            className="flex flex-wrap gap-1 px-3 py-2 min-h-[36px] cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md transition-colors duration-150 items-center"
+            className={`flex flex-wrap gap-1 px-3 py-2 min-h-[36px] rounded-md transition-colors duration-150 items-center ${
+              isEditMode
+                ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+                : 'cursor-default'
+            }`}
           >
             {value.length > 0 ? (
               value.map((tag, index) => (
@@ -536,24 +628,38 @@ export const TransactionTable = () => {
         
         if (isEditing) {
           return (
-            <Select
-              value={editingData.verified !== undefined ? editingData.verified.toString() : value.toString()}
-              onChange={(e) => {
-                const newValue = e.target.value === 'true';
-                setEditingData(prev => ({ ...prev, verified: newValue }));
-                saveField(row.original.id, 'verified', newValue);
-              }}
-              onBlur={cancelEditing}
-              options={[{ value: "true", label: "Verified" }, { value: "false", label: "Unverified" }]}
-              autoFocus
-            />
+            <div className="absolute inset-0 z-50 flex items-center">
+              <div className="w-full">
+                <Select
+                  value={editingData.verified !== undefined ? editingData.verified.toString() : value.toString()}
+                  onChange={(newValue) => {
+                    const processedValue = newValue === 'true';
+                    setEditingData(prev => ({ ...prev, verified: processedValue }));
+                    stageFieldChange(row.original.id, 'verified', processedValue);
+                  }}
+                  onBlur={() => {
+                    // Auto-save on blur
+                    const currentValue = editingData.verified;
+                    if (currentValue !== undefined) {
+                      stageFieldChange(row.original.id, 'verified', currentValue);
+                    }
+                  }}
+                  options={[{ value: "true", label: "Verified" }, { value: "false", label: "Unverified" }]}
+                  autoFocus
+                />
+              </div>
+            </div>
           );
         }
         
         return (
           <div
             onClick={() => startEditing(row.original.id, 'verified', value)}
-            className="px-3 py-2 min-h-[36px] text-sm cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 rounded-md flex items-center transition-colors duration-150"
+            className={`px-3 py-2 min-h-[36px] text-sm rounded-md flex items-center transition-colors duration-150 ${
+              isEditMode
+                ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+                : 'cursor-default'
+            }`}
           >
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
               value 
@@ -606,7 +712,7 @@ export const TransactionTable = () => {
       },
       size: 140,
     })
-  ], [editingCell, editingData, selectedRows, accountsQuery.data || [], categoriesQuery.data || [], authState.user]);
+  ], [editingCell, editingData, selectedRows, accountsQuery.data, categoriesQuery.data, authState.user, isEditMode]);
 
   const table = useReactTable({
     data: (() => {
@@ -1121,6 +1227,27 @@ export const TransactionTable = () => {
         </div>
         <div className="flex gap-2">
           <Button
+            onClick={() => setIsEditMode(!isEditMode)}
+            variant={isEditMode ? "primary" : "secondary"}
+            size="sm"
+            className={isEditMode ?
+              "bg-green-600 hover:bg-green-700 text-white" :
+              "bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200"
+            }
+          >
+            {isEditMode ? (
+              <>
+                <CheckSquare className="w-4 h-4 mr-1" />
+                Exit Edit
+              </>
+            ) : (
+              <>
+                <Square className="w-4 h-4 mr-1" />
+                Edit Mode
+              </>
+            )}
+          </Button>
+          <Button
             onClick={() => {
               setShowAddTransactionModal(true);
               setSelectedAddOption('transaction');
@@ -1158,7 +1285,11 @@ export const TransactionTable = () => {
                 className="h-8 text-sm min-w-[140px]"
                 options={[
                   { value: "", label: "All Accounts" },
-                  ...accountsQuery.data?.map(account => ({ value: account.id, label: account.name })) || []
+                  ...(() => {
+                    const accounts = accountsQuery.data || [];
+                    const accountList = Array.isArray(accounts) ? accounts : (accounts.results || []);
+                    return accountList.map(account => ({ value: account.id, label: account.name }));
+                  })()
                 ]}
               />
             </div>
@@ -1169,7 +1300,11 @@ export const TransactionTable = () => {
                 className="h-8 text-sm min-w-[140px]"
                 options={[
                   { value: "", label: "All Categories" },
-                  ...categoriesQuery.data?.map(category => ({ value: category.id, label: category.name })) || []
+                  ...(() => {
+                    const categories = categoriesQuery.data || [];
+                    const categoryList = Array.isArray(categories) ? categories : (categories.results || []);
+                    return categoryList.map(category => ({ value: category.id, label: category.name }));
+                  })()
                 ]}
               />
             </div>
@@ -1188,7 +1323,56 @@ export const TransactionTable = () => {
           </div>
         </div>
 
-        {/* Selection Actions Bar */}
+        {/* Unsaved Changes Banner */}
+        {hasUnsavedChanges && (
+          <div className="bg-yellow-50 dark:bg-yellow-950/50 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <span className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                {stagedChanges.size} unsaved change{stagedChanges.size !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={discardChanges}
+                variant="secondary"
+                size="sm"
+                className="text-gray-600 hover:text-gray-800"
+              >
+                Discard
+              </Button>
+              <Button
+                onClick={saveAllChanges}
+                variant="primary"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Mode Indicator */}
+        {isEditMode && !hasUnsavedChanges && (
+          <div className="bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-sm font-medium text-green-900 dark:text-green-100">
+                Edit Mode Active - Click any cell to edit
+              </span>
+            </div>
+            <div className="text-xs text-green-700 dark:text-green-300">
+              Changes are staged locally - you'll be prompted to save
+            </div>
+          </div>
+        )}
+
+      {/* Selection Actions Bar */}
         {selectedRows.size > 0 && (
           <div className="bg-primary-50 dark:bg-primary-950/50 border border-primary-200 dark:border-primary-800 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1226,18 +1410,18 @@ export const TransactionTable = () => {
           </div>
         )}
 
-        {/* Modern Table Container */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        {/* Excel/Notion Style Table Container */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm overflow-visible relative">
           {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full">
+          <div className="hidden lg:block overflow-x-auto" style={{ minHeight: '400px' }}>
+            <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                <tr>
                   {table.getHeaderGroups().map(headerGroup =>
                     headerGroup.headers.map(header => (
                       <th
                         key={header.id}
-                        className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border-r border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 last:border-r-0"
                         onClick={header.column.getToggleSortingHandler()}
                         style={{ width: header.getSize() }}
                       >
@@ -1255,7 +1439,7 @@ export const TransactionTable = () => {
                   )}
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-800">
                 {table.getRowModel().rows.length === 0 ? (
                   <tr>
                     <td colSpan={table.getAllColumns().length} className="px-6 py-16 text-center">
@@ -1284,13 +1468,18 @@ export const TransactionTable = () => {
                     <tr
                       key={row.id}
                       className={`
-                        group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200
-                        ${editingCell?.id === row.original.id.toString() ? 'bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-200 dark:ring-primary-800' : ''}
-                        ${selectedRows.has(row.original.id) ? 'bg-primary-50 dark:bg-primary-950/30' : ''}
+                        group transition-all duration-200 border-b border-gray-200 dark:border-gray-600 last:border-b-0
+                        ${editingCell?.id === row.original.id.toString() ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                        ${selectedRows.has(row.original.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                        ${isEditMode ? '' : ''}
                       `}
                     >
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-4  whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        <td
+                          key={cell.id}
+                          className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 relative border-r border-b border-gray-200 dark:border-gray-600 last:border-r-0 align-top"
+                          style={{ width: cell.column.getSize(), minWidth: cell.column.getSize(), maxWidth: cell.column.getSize() }}
+                        >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
@@ -1326,8 +1515,12 @@ export const TransactionTable = () => {
               table.getRowModel().rows.map(row => {
                 const transaction = row.original;
                 const isSelected = selectedRows.has(transaction.id);
-                const accountName = accountsQuery.data?.find(acc => acc.id === transaction.account_id)?.name || 'Unknown Account';
-                const categoryName = categoriesQuery.data?.find(cat => cat.id === transaction.category_id)?.name;
+                const accounts = accountsQuery.data || [];
+                const accountList = Array.isArray(accounts) ? accounts : (accounts.results || []);
+                const categories = categoriesQuery.data || [];
+                const categoryList = Array.isArray(categories) ? categories : (categories.results || []);
+                const accountName = accountList.find(acc => acc.id === transaction.account_id)?.name || 'Unknown Account';
+                const categoryName = categoryList.find(cat => cat.id === transaction.category_id)?.name;
 
                 return (
                   <div
@@ -1399,7 +1592,11 @@ export const TransactionTable = () => {
                             transaction={transaction}
                             field="category_id"
                             value={transaction.category_id}
-                            options={categoriesQuery.data?.map(cat => ({ value: cat.id, label: cat.name })) || []}
+                            options={(() => {
+                              const categories = categoriesQuery.data || [];
+                              const categoryList = Array.isArray(categories) ? categories : (categories.results || []);
+                              return categoryList.map(cat => ({ value: cat.id, label: cat.name }));
+                            })()}
                             placeholder="No category"
                           />
                         </div>
@@ -1517,7 +1714,11 @@ export const TransactionTable = () => {
                   }))}
                   options={[
                     { value: "", label: "Keep current accounts" },
-                    ...(accountsQuery.data || []).map((account) => ({ value: account.id, label: `${account.name} (${account.account_type}) - ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}` }))
+                    ...(() => {
+                      const accounts = accountsQuery.data || [];
+                      const accountList = Array.isArray(accounts) ? accounts : (accounts.results || []);
+                      return accountList.map((account) => ({ value: account.id, label: `${account.name} (${account.account_type}) - ${formatCurrency(parseFloat(account.balance || '0'), authState.user)}` }));
+                    })()
                   ]}
                 />
               </div>
@@ -1533,7 +1734,11 @@ export const TransactionTable = () => {
                   }))}
                   options={[
                     { value: "", label: "Keep current categories" },
-                    ...(categoriesQuery.data || []).map((category) => ({ value: category.id, label: category.name }))
+                    ...(() => {
+                      const categories = categoriesQuery.data || [];
+                      const categoryList = Array.isArray(categories) ? categories : (categories.results || []);
+                      return categoryList.map((category) => ({ value: category.id, label: category.name }));
+                    })()
                   ]}
                 />
               </div>
@@ -1684,11 +1889,15 @@ export const TransactionTable = () => {
                     required
                   >
                     <option value="">Select account...</option>
-                    {accountsQuery.data?.map(account => (
-                      <option key={account.id} value={account.id}>
-                        {account.name} ({account.account_type})
-                      </option>
-                    ))}
+                    {(() => {
+                      const accounts = accountsQuery.data || [];
+                      const accountList = Array.isArray(accounts) ? accounts : (accounts.results || []);
+                      return accountList.map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({account.account_type})
+                        </option>
+                      ));
+                    })()}
                   </select>
                 </div>
 
@@ -1702,11 +1911,15 @@ export const TransactionTable = () => {
                     className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-800 theme-text-primary"
                   >
                     <option value="">No category</option>
-                    {categoriesQuery.data?.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
+                    {(() => {
+                      const categories = categoriesQuery.data || [];
+                      const categoryList = Array.isArray(categories) ? categories : (categories.results || []);
+                      return categoryList.map(category => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ));
+                    })()}
                   </select>
                 </div>
 
@@ -1843,11 +2056,15 @@ export const TransactionTable = () => {
                   className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-800 theme-text-primary"
                 >
                   <option value="">Select account...</option>
-                  {accountsQuery.data?.map(account => (
-                    <option key={account.id} value={account.id}>
-                      {account.name} ({account.account_type})
-                    </option>
-                  ))}
+                  {(() => {
+                    const accounts = accountsQuery.data || [];
+                    const accountList = Array.isArray(accounts) ? accounts : (accounts.results || []);
+                    return accountList.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {account.name} ({account.account_type})
+                      </option>
+                    ));
+                  })()}
                 </select>
               </div>
 

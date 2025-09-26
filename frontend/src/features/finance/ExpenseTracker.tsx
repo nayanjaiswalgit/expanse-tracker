@@ -75,7 +75,7 @@ const ExpenseTracker: React.FC = () => {
   // Handlers
   const handleCreateGroup = async () => {
     try {
-      await createExpenseGroupMutation.mutateAsync({
+      await createGroupMutation.mutateAsync({
         name: groupName,
         description: groupDescription,
         group_type: groupType,
@@ -659,9 +659,9 @@ const ExpenseTracker: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreateGroup}
-              disabled={!groupName.trim() || createExpenseGroupMutation.isPending}
+              disabled={!groupName.trim() || createGroupMutation.isPending}
             >
-              {createExpenseGroupMutation.isPending ? 'Creating...' : 'Create Group'}
+              {createGroupMutation.isPending ? 'Creating...' : 'Create Group'}
             </Button>
           </div>
         </div>

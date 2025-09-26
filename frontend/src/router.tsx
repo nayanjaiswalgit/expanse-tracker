@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import App from './App';
 import { RouteError, ProtectedRoute } from './components';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Public pages
 import ProLandingPage from './pages/ProLandingPage';
@@ -20,7 +21,7 @@ import { GroupExpenses } from './features/finance/GroupExpenses';
 import ExpenseTracker from './features/finance/ExpenseTracker';
 import GmailCallback from './features/auth/GmailCallback';
 import { Settings } from './features/settings/Settings';
-import { UploadHistory } from './features/finance/UploadHistory';
+import { BankStatementUploadWrapper } from './features/finance/BankStatementUploadWrapper';
 import { TransactionSettings } from './features/finance/TransactionSettings';
 import { StatementViewer } from './features/finance/StatementViewer';
 import InvoiceOCR from './features/ai/InvoiceOCR';
@@ -31,6 +32,13 @@ import RecurringInvestments from './features/finance/RecurringInvestments';
 
 // Layout
 import { Layout } from './components/layout';
+
+// Helper function to wrap components with error boundary
+const withErrorBoundary = (Component: React.ComponentType) => (
+  <ErrorBoundary>
+    <Component />
+  </ErrorBoundary>
+);
 
 const router = createBrowserRouter([
     {
@@ -51,26 +59,27 @@ const router = createBrowserRouter([
                     {
                         element: <Layout />,
                         children: [
-                            { path: 'dashboard', element: <Dashboard /> },
-                            { path: 'transactions', element: <TransactionTable /> },
-                            { path: 'accounts', element: <AccountsManagement /> },
+                            { path: 'dashboard', element: withErrorBoundary(Dashboard) },
+                            { path: 'transactions', element: withErrorBoundary(TransactionTable) },
+                            { path: 'accounts', element: withErrorBoundary(AccountsManagement) },
                             { path: 'subscriptions', element: <Navigate to="/settings" replace /> },
-                            { path: 'goals', element: <Goals /> },
-                            { path: 'expenses', element: <ExpenseTracker /> },
-                            { path: 'lending', element: <LendingTracker /> },
-                            { path: 'group-expenses', element: <GroupExpenses /> },
-                            { path: 'gmail-callback', element: <GmailCallback /> },
+                            { path: 'goals', element: withErrorBoundary(Goals) },
+                            { path: 'expenses', element: withErrorBoundary(ExpenseTracker) },
+                            { path: 'lending', element: withErrorBoundary(LendingTracker) },
+                            { path: 'group-expenses', element: withErrorBoundary(GroupExpenses) },
+                            { path: 'gmail-callback', element: withErrorBoundary(GmailCallback) },
                             { path: 'analytics', element: <Navigate to="/dashboard" replace /> },
-                            { path: 'settings/*', element: <Settings /> },
-                            { path: 'upload-history', element: <UploadHistory /> },
+                            { path: 'settings/*', element: withErrorBoundary(Settings) },
+                            { path: 'upload-history', element: withErrorBoundary(BankStatementUploadWrapper) },
+                            { path: 'uploads', element: withErrorBoundary(BankStatementUploadWrapper) },
                             { path: 'profile', element: <Navigate to="/settings" replace /> },
-                            { path: 'transaction-settings', element: <TransactionSettings /> },
-                            { path: 'statement-viewer', element: <StatementViewer /> },
-                            { path: 'invoice-ocr', element: <InvoiceOCR /> },
-                            { path: 'monthly-analysis', element: <MonthlyAnalysis /> },
-                            { path: 'telegram-integration', element: <TelegramIntegration /> },
-                            { path: 'plan-customization', element: <PlanCustomization /> },
-                            { path: 'recurring-investments', element: <RecurringInvestments /> },
+                            { path: 'transaction-settings', element: withErrorBoundary(TransactionSettings) },
+                            { path: 'statement-viewer', element: withErrorBoundary(StatementViewer) },
+                            { path: 'invoice-ocr', element: withErrorBoundary(InvoiceOCR) },
+                            { path: 'monthly-analysis', element: withErrorBoundary(MonthlyAnalysis) },
+                            { path: 'telegram-integration', element: withErrorBoundary(TelegramIntegration) },
+                            { path: 'plan-customization', element: withErrorBoundary(PlanCustomization) },
+                            { path: 'recurring-investments', element: withErrorBoundary(RecurringInvestments) },
                             // Old routes redirects
                             { path: 'upload', element: <Navigate to="/accounts" replace /> },
                             { path: 'social', element: <Navigate to="/expenses" replace /> },

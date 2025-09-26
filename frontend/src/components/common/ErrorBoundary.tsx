@@ -35,28 +35,27 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-          <div className="text-center max-w-lg mx-auto bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <AlertTriangle className="h-20 w-20 text-red-500 mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-3">Oops! Something went wrong.</h1>
-            <p className="text-gray-600 text-lg mb-6">
-              We're sorry for the inconvenience. Our team has been notified.
-              Please try refreshing the page or contact support if the issue persists.
+        <div className="flex items-center justify-center p-6 min-h-[400px] bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-center max-w-md">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Component Error</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+              This component encountered an error and couldn't load.
             </p>
             <Button
-              onClick={() => window.location.reload()}
-              size="lg"
+              onClick={() => this.setState({ hasError: false, error: undefined })}
+              size="sm"
+              variant="primary"
             >
-              Refresh Page
+              Try Again
             </Button>
-            {this.state.error && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg text-left text-sm text-gray-700 overflow-auto max-h-48">
-                <h4 className="font-semibold mb-2">Error Details:</h4>
-                <p className="font-mono text-xs text-red-700 break-all">{this.state.error.message}</p>
-                {this.state.error.stack && (
-                  <pre className="font-mono text-xs text-red-700 whitespace-pre-wrap mt-2">{this.state.error.stack}</pre>
-                )}
-              </div>
+            {this.state.error && process.env.NODE_ENV === 'development' && (
+              <details className="mt-4 text-left">
+                <summary className="text-xs text-gray-500 cursor-pointer">Show Error Details</summary>
+                <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-700 rounded text-xs text-red-600 dark:text-red-400 overflow-auto max-h-32">
+                  <p className="font-mono break-all">{this.state.error.message}</p>
+                </div>
+              </details>
             )}
           </div>
         </div>

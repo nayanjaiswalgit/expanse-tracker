@@ -192,7 +192,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
           {/* Search Input */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-600">
             <div className="relative">
