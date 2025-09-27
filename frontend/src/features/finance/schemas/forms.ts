@@ -389,25 +389,40 @@ export type MerchantPatternFormData = z.infer<typeof merchantPatternSchema>;
 export type AccountManagementFormData = z.infer<typeof accountManagementSchema>;
 export type GoalEnhancedFormData = z.infer<typeof goalEnhancedSchema>;
 export type BankStatementUploadFormData = z.infer<typeof bankStatementUploadSchema>;
-// Monthly Balance Schema
-export const monthlyBalanceSchema = z.object({
-  year: z
-    .number()
-    .int()
-    .min(2000, 'Year must be 2000 or later')
-    .max(2100, 'Year must be 2100 or earlier'),
-  month: z
-    .number()
-    .int()
-    .min(1, 'Month must be between 1 and 12')
-    .max(12, 'Month must be between 1 and 12'),
+// Unified Balance Record Schema
+export const balanceRecordSchema = z.object({
   balance: z
     .number()
     .or(z.string().refine((val) => !isNaN(Number(val)), 'Balance must be a valid number')),
+  date: z
+    .string()
+    .min(1, 'Date is required')
+    .refine((val) => !isNaN(Date.parse(val)), 'Invalid date format'),
+  entry_type: z.enum([
+    'daily',
+    'monthly',
+    'weekly',
+    'manual',
+    'reconciliation',
+  ], {
+    required_error: 'Please select an entry type',
+  }).default('manual'),
+
+  // Statement/Reconciliation Fields
   statement_balance: z
     .number()
     .or(z.string().refine((val) => !isNaN(Number(val)), 'Statement balance must be a valid number'))
     .optional(),
+  reconciliation_status: z.enum([
+    'pending',
+    'reconciled',
+    'discrepancy',
+    'investigation',
+  ], {
+    required_error: 'Please select a reconciliation status',
+  }).default('pending'),
+
+  // Transaction Analysis
   total_income: z
     .number()
     .min(0, 'Total income must be non-negative')
@@ -422,12 +437,35 @@ export const monthlyBalanceSchema = z.object({
     .number()
     .or(z.string().refine((val) => !isNaN(Number(val)), 'Calculated change must be a valid number'))
     .default(0),
-  reconciled: z.boolean().default(false),
+
+  // Period Information
+  period_start: z
+    .string()
+    .optional()
+    .refine((val) => !val || !isNaN(Date.parse(val)), 'Invalid start date format'),
+  period_end: z
+    .string()
+    .optional()
+    .refine((val) => !val || !isNaN(Date.parse(val)), 'Invalid end date format'),
+  is_month_end: z.boolean().default(false),
+
+  // Additional Information
   notes: z
     .string()
     .max(1000, 'Notes must be less than 1000 characters')
     .optional(),
+  source: z
+    .string()
+    .max(100, 'Source must be less than 100 characters')
+    .optional(),
+  confidence_score: z
+    .number()
+    .min(0, 'Confidence score must be between 0 and 1')
+    .max(1, 'Confidence score must be between 0 and 1')
+    .or(z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 1, 'Confidence score must be between 0 and 1'))
+    .optional(),
+  metadata: z.record(z.any()).default({}),
 });
 
 export type TransactionSettingsFormData = z.infer<typeof transactionSettingsSchema>;
-export type MonthlyBalanceFormData = z.infer<typeof monthlyBalanceSchema>;
+export type BalanceRecordFormData = z.infer<typeof balanceRecordSchema>;

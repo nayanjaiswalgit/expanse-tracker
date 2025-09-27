@@ -377,18 +377,64 @@ class AccountViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def add_balance_record(self, request, pk=None):
-        """Add a balance record for a specific account"""
+        """Add or update a balance record for a specific account"""
         account = self.get_object()
 
-        # Add account to the request data
-        data = request.data.copy()
-        data['account'] = account.id
+        # Get the required fields for uniqueness check
+        date = request.data.get('date')
+        entry_type = request.data.get('entry_type')
 
-        serializer = BalanceRecordSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not date or not entry_type:
+            return Response(
+                {'error': 'Date and entry_type are required fields'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Prepare the data for update_or_create
+        defaults = {
+            'balance': request.data.get('balance'),
+            'notes': request.data.get('notes', ''),
+            'source': request.data.get('source', 'manual'),
+            'is_month_end': request.data.get('is_month_end', False),
+            'reconciliation_status': request.data.get('reconciliation_status', 'pending'),
+            'statement_balance': request.data.get('statement_balance'),
+            'total_income': request.data.get('total_income'),
+            'total_expenses': request.data.get('total_expenses'),
+            'calculated_change': request.data.get('calculated_change'),
+            'actual_change': request.data.get('actual_change'),
+            'missing_transactions': request.data.get('missing_transactions'),
+            'period_start': request.data.get('period_start'),
+            'period_end': request.data.get('period_end'),
+            'confidence_score': request.data.get('confidence_score'),
+            'metadata': request.data.get('metadata', {}),
+            'user': request.user,
+        }
+
+        # Remove None values
+        defaults = {k: v for k, v in defaults.items() if v is not None}
+
+        try:
+            # Use update_or_create to handle duplicates
+            balance_record, created = fmodels.BalanceRecord.objects.update_or_create(
+                account=account,
+                date=date,
+                entry_type=entry_type,
+                user=request.user,
+                defaults=defaults
+            )
+
+            # Serialize the result
+            serializer = BalanceRecordSerializer(balance_record)
+
+            # Return appropriate status code
+            status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            return Response(serializer.data, status=status_code)
+
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to save balance record: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     @action(detail=True, methods=['get'])
     def monthly_balances(self, request, pk=None):
@@ -457,6 +503,86 @@ class AccountViewSet(viewsets.ModelViewSet):
         balance_records = queryset.order_by('-date')
         serializer = BalanceRecordSerializer(balance_records, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def bulk_monthly_balance_update(self, request):
+        """Bulk update monthly balances for multiple accounts"""
+        from datetime import datetime, date
+        from django.db import transaction
+
+        updates = request.data.get('updates', [])
+        if not updates:
+            return Response({'error': 'No updates provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        update_date = request.data.get('date')
+        if not update_date:
+            # Default to today if no date provided
+            update_date = date.today().strftime('%Y-%m-%d')
+
+        created_records = []
+        errors = []
+
+        with transaction.atomic():
+            for update in updates:
+                account_id = update.get('account_id')
+                balance = update.get('balance')
+                notes = update.get('notes', '')
+
+                if not account_id or balance is None:
+                    errors.append(f"Account ID and balance required for update: {update}")
+                    continue
+
+                try:
+                    # Get account and verify ownership
+                    account = fmodels.Account.objects.get(id=account_id, user=request.user)
+
+                    # Check if monthly balance already exists for this date
+                    existing_record = fmodels.BalanceRecord.objects.filter(
+                        account=account,
+                        date=update_date,
+                        entry_type='monthly'
+                    ).first()
+
+                    if existing_record:
+                        # Update existing record
+                        existing_record.balance = balance
+                        existing_record.notes = notes
+                        existing_record.save()
+                        created_records.append(BalanceRecordSerializer(existing_record).data)
+                    else:
+                        # Create new monthly balance record
+                        data = {
+                            'account': account.id,
+                            'balance': balance,
+                            'date': update_date,
+                            'entry_type': 'monthly',
+                            'is_month_end': True,
+                            'notes': notes,
+                            'source': 'bulk_update'
+                        }
+
+                        serializer = BalanceRecordSerializer(data=data)
+                        if serializer.is_valid():
+                            record = serializer.save(user=request.user)
+                            created_records.append(BalanceRecordSerializer(record).data)
+                        else:
+                            errors.append(f"Validation error for account {account_id}: {serializer.errors}")
+
+                except fmodels.Account.DoesNotExist:
+                    errors.append(f"Account with ID {account_id} not found or not owned by user")
+                except Exception as e:
+                    errors.append(f"Error updating account {account_id}: {str(e)}")
+
+        response_data = {
+            'created_records': created_records,
+            'total_updated': len(created_records),
+            'errors': errors
+        }
+
+        if errors:
+            return Response(response_data, status=status.HTTP_207_MULTI_STATUS)
+        else:
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 

@@ -77,7 +77,7 @@ export const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900 dark:to-secondary-800 flex p-6">
+    <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900 dark:to-secondary-800 flex lg:p-6">
       {/* Skip to main content link for screen readers */}
       <a 
         href="#main-content"
@@ -89,11 +89,11 @@ export const Layout = () => {
       {/* Sidebar */}
       <motion.aside
         className={`fixed inset-y-0 left-0 z-50 bg-white dark:bg-secondary-900 border-r border-secondary-200 dark:border-secondary-800 flex flex-col ${
-          isMobile ? (sidebarOpen ? 'block' : 'hidden') : 'block'
+          isMobile ? 'lg:block' : 'block'
         }`}
         initial={false}
         animate={{
-          width: isMobile ? (sidebarOpen ? "18rem" : "0rem") : (sidebarMinimized ? "5rem" : "18rem"),
+          width: isMobile ? "18rem" : (sidebarMinimized ? "5rem" : "18rem"),
           x: isMobile ? (sidebarOpen ? 0 : "-100%") : 0,
         }}
         transition={{ type: "spring", stiffness: 400, damping: 35, mass: 0.8 }}
@@ -435,6 +435,7 @@ export const Layout = () => {
             exit="hidden"
             variants={overlayVariants}
             onClick={() => setSidebarOpen(false)}
+            style={{ top: 0 }}
           />
         )}
       </AnimatePresence>
@@ -444,7 +445,7 @@ export const Layout = () => {
         sidebarMinimized ? 'lg:ml-20' : 'lg:ml-72'
       }`}>
         {/* Mobile header */}
-        <div className="lg:hidden bg-white dark:bg-secondary-800 shadow-sm border-secondary-200 dark:border-secondary-700 border-b px-5 py-4 flex items-center justify-between">
+        <div className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-secondary-800 shadow-sm border-secondary-200 dark:border-secondary-700 border-b px-5 py-4 flex items-center justify-between z-30">
           <motion.button
             onClick={() => setSidebarOpen(true)}
             className="btn btn-ghost"
@@ -464,10 +465,10 @@ export const Layout = () => {
         </div>
 
         {/* Page content */}
-        <motion.main 
+        <motion.main
           key={location.pathname}
-          id="main-content" 
-          className="flex-1 overflow-y-auto main-content"
+          id="main-content"
+          className="flex-1 overflow-y-auto main-content pt-20 lg:pt-0"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}

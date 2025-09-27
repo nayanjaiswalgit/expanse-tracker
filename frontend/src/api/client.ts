@@ -490,6 +490,24 @@ class ApiClient {
     return response.data.results || response.data;
   }
 
+  // Bulk monthly balance update
+  async bulkUpdateMonthlyBalances(updates: Array<{
+    account_id: number;
+    balance: number;
+    notes?: string;
+  }>, date?: string): Promise<{
+    created_records: BalanceRecord[];
+    total_updated: number;
+    errors: string[];
+  }> {
+    const payload = {
+      updates,
+      date: date || new Date().toISOString().split('T')[0]
+    };
+    const response = await this.client.post('/accounts/bulk_monthly_balance_update/', payload);
+    return response.data;
+  }
+
   // Categories
   async getCategories(): Promise<Category[]> {
     const response = await this.client.get('/categories/');

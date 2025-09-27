@@ -141,8 +141,8 @@ const ModalContent = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div 
-          className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]"
+        <div
+          className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] [&_.space-y-4>:first-child]:mt-0 [&_.space-y-6>:first-child]:mt-0"
           onClick={(e) => e.stopPropagation()}
         >
           {children}

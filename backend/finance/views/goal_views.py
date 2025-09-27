@@ -178,6 +178,38 @@ class GoalViewSet(viewsets.ModelViewSet):
                 {"error": "Goal is not paused"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+    @action(detail=True, methods=["post"])
+    def toggle_status(self, request, pk=None):
+        """Toggle goal status"""
+        goal = self.get_object()
+
+        try:
+            new_status = request.data.get("status")
+
+            if not new_status:
+                return Response(
+                    {"error": "Status is required"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if new_status not in ["active", "paused", "cancelled", "completed"]:
+                return Response(
+                    {"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            goal.status = new_status
+            goal.save()
+
+            return Response(
+                {
+                    "message": f"Goal status changed to {new_status}",
+                    "status": goal.status
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=False, methods=["get"])
     def summary(self, request):
         """Get goals summary"""

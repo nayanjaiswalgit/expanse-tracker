@@ -140,9 +140,20 @@ def _get_error_details(exc, original_data) -> dict:
     elif hasattr(exc, 'detail') and isinstance(exc.detail, list):
         details['errors'] = exc.detail
 
-    # Include original error data if useful
+    # Include original error data if useful, but extract only the string message
     if original_data and isinstance(original_data, dict):
-        details.update(original_data)
+        # Extract just the error message string from nested error objects
+        if 'error' in original_data:
+            error_value = original_data['error']
+            if isinstance(error_value, str):
+                details['detail'] = error_value
+            elif isinstance(error_value, dict) and 'message' in error_value:
+                details['detail'] = error_value['message']
+        # For other types of data, include selectively
+        elif 'detail' in original_data:
+            details['detail'] = str(original_data['detail'])
+        elif 'message' in original_data:
+            details['detail'] = str(original_data['message'])
 
     return details
 

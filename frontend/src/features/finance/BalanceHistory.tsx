@@ -34,6 +34,17 @@ export const BalanceHistory: React.FC<BalanceHistoryProps> = ({
   const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [entryType, setEntryType] = useState<'manual' | 'monthly' | 'reconciliation'>('manual');
   const [formError, setFormError] = useState<string>('');
+
+  // Safe wrapper for setFormError to ensure only strings are set
+  const safeSetFormError = (error: any) => {
+    if (typeof error === 'string') {
+      setFormError(error);
+    } else if (error && typeof error === 'object') {
+      setFormError(error.message || JSON.stringify(error));
+    } else {
+      setFormError('An error occurred');
+    }
+  };
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleAddBalance = async (e: React.FormEvent) => {
@@ -72,7 +83,7 @@ export const BalanceHistory: React.FC<BalanceHistoryProps> = ({
 
     try {
       await createBalanceRecord.mutateAsync({
-        account_id: account.id,
+        account: account.id,
         balance: balanceValue,
         date: newDate,
         entry_type: entryType,
@@ -91,15 +102,25 @@ export const BalanceHistory: React.FC<BalanceHistoryProps> = ({
     } catch (error: any) {
       let errorMessage = 'Failed to add balance record. Please try again.';
 
-      if (error?.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
+      // Handle the specific error structure: {code, message, details: {detail}}
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+
+        // Try to get the most specific error message
+        if (errorData.details?.detail) {
+          errorMessage = errorData.details.detail;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
       } else if (error?.message) {
         errorMessage = error.message;
       }
 
-      setFormError(errorMessage);
+      safeSetFormError(errorMessage);
     }
   };
 
@@ -220,7 +241,7 @@ export const BalanceHistory: React.FC<BalanceHistoryProps> = ({
 
             {formError && (
               <div className="text-xs text-red-600 dark:text-red-400">
-                {formError}
+                {typeof formError === 'string' ? formError : JSON.stringify(formError)}
               </div>
             )}
 

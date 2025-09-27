@@ -112,7 +112,7 @@ export const FormModal: React.FC<FormModalProps> = ({
           </div>
         </div>
         
-        <div className={`overflow-y-auto ${
+        <div className={`overflow-y-auto [&_.space-y-4>:first-child]:mt-0 [&_.space-y-6>:first-child]:mt-0 ${
           isFullscreen ? 'h-[calc(100vh-80px)]' : 'max-h-[calc(90vh-120px)]'
         }`}>
           {children}

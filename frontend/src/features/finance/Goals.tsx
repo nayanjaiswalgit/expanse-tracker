@@ -85,7 +85,7 @@ export const Goals = () => {
   const updateProgressMutation = useUpdateGoalProgress();
   const toggleStatusMutation = useToggleGoalStatus();
   const { state: authState } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [showAmounts, setShowAmounts] = useState(true);
@@ -111,6 +111,7 @@ export const Goals = () => {
     images: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     // React Query handles data fetching automatically
@@ -153,6 +154,7 @@ export const Goals = () => {
   };
 
   const handleEditGoal = (goal: Goal) => {
+    console.log('Edit goal clicked:', goal.name);
     setFormData({
       name: goal.name,
       description: goal.description || '',
@@ -266,8 +268,10 @@ export const Goals = () => {
   };
 
   const handleToggleStatus = async (goal: Goal, newStatus: 'active' | 'paused' | 'cancelled') => {
+    console.log('Toggling goal status:', goal.name, 'from', goal.status, 'to', newStatus);
     try {
       await toggleStatusMutation.mutateAsync({ id: goal.id, status: newStatus });
+      console.log('Successfully toggled goal status');
     } catch (error) {
       console.error('Failed to toggle goal status:', error);
       showError('Failed to update goal status', 'Please try again.');
@@ -445,45 +449,48 @@ export const Goals = () => {
                         <div className="flex items-center space-x-1">
                           <button
                             onClick={(e) => {
+                              console.log('Update progress clicked for goal:', goal.name);
                               e.stopPropagation();
                               setProgressGoal(goal);
                               setProgressAmount(goal.current_amount);
                               setShowProgressModal(true);
                             }}
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                             title="Update progress"
                           >
-                            <Target className="h-3.5 w-3.5" />
+                            <Target className="h-4 w-4" />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditGoal(goal);
                             }}
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                             title="Edit goal"
                           >
-                            <Edit2 className="h-3.5 w-3.5" />
+                            <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={(e) => {
+                              console.log('Pause button clicked for goal:', goal.name);
                               e.stopPropagation();
                               handleToggleStatus(goal, 'paused');
                             }}
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                             title="Pause goal"
                           >
-                            <Pause className="h-3.5 w-3.5" />
+                            <Pause className="h-4 w-4" />
                           </button>
                           <button
                             onClick={(e) => {
+                              console.log('Delete goal clicked for:', goal.name);
                               e.stopPropagation();
                               handleDeleteGoal(goal);
                             }}
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                             title="Delete goal"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
@@ -673,7 +680,7 @@ export const Goals = () => {
         onClose={handleCloseModal}
         title={editingGoal ? 'Edit Goal' : 'Add New Goal'}
       >
-        <form onSubmit={handleSubmit} className="space-y-6 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
           {/* Goal Name */}
           <Input
             label="Goal Name"
@@ -685,150 +692,143 @@ export const Goals = () => {
           />
 
           {/* Goal Type */}
-          <div>
-            <label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
-              Goal Type *
-            </label>
-            <div className="grid grid-cols-1 gap-3">
-              {goalTypes.map((type) => (
-                <label key={type.value} className="relative flex cursor-pointer">
-                  <input
-                    type="radio"
-                    value={type.value}
-                    checked={formData.goal_type === type.value}
-                    onChange={(e) => setFormData(prev => ({ ...prev, goal_type: e.target.value as GoalFormData['goal_type'] }))}
-                    className="sr-only"
-                  />
-                  <div className={`flex-1 p-4 border-2 rounded-lg transition-colors duration-200 ${
-                    formData.goal_type === type.value
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
-                  }`}>
-                    <div className="flex items-center">
-                      <div className={`p-3 rounded-full mr-3 ${
-                        formData.goal_type === type.value
-                          ? goalTypeColors[type.value as keyof typeof goalTypeColors]
-                          : 'bg-gray-100 text-secondary-500 dark:text-secondary-400'
-                      }`}>
-                        {React.createElement(getGoalIcon(type.value), { className: 'h-5 w-5' })}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-lg text-gray-800 dark:text-gray-200">{type.label}</div>
-                        <div className="text-sm text-secondary-600 dark:text-secondary-400">{type.description}</div>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
+          <Select
+            label="Goal Type"
+            value={formData.goal_type}
+            onChange={(value) => setFormData(prev => ({ ...prev, goal_type: value as GoalFormData['goal_type'] }))}
+            options={goalTypes.map(type => ({ value: type.value, label: type.label }))}
+            required
+          />
 
-          {/* Target Amount and Currency */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <Input
-              label="Target Amount"
-              type="number"
-              step="0.01"
-              value={formData.target_amount}
-              onChange={(e) => setFormData(prev => ({ ...prev, target_amount: e.target.value }))}
-              placeholder="1000.00"
-              required
-            />
-            <Select
-              label="Currency"
-              value={formData.currency}
-              onChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
-              options={[
-                { value: "INR", label: "INR - Indian Rupee" },
-                { value: "USD", label: "USD - US Dollar" },
-                { value: "EUR", label: "EUR - Euro" },
-                { value: "GBP", label: "GBP - British Pound" },
-                { value: "JPY", label: "JPY - Japanese Yen" },
-                { value: "CAD", label: "CAD - Canadian Dollar" },
-                { value: "AUD", label: "AUD - Australian Dollar" },
-              ]}
-            />
-          </div>
-
-          {/* Current Amount */}
+          {/* Target Amount */}
           <Input
-            label="Current Amount"
+            label="Target Amount"
             type="number"
             step="0.01"
-            value={formData.current_amount}
-            onChange={(e) => setFormData(prev => ({ ...prev, current_amount: e.target.value }))}
-            placeholder="0.00"
+            value={formData.target_amount}
+            onChange={(e) => setFormData(prev => ({ ...prev, target_amount: e.target.value }))}
+            placeholder="1000.00"
+            required
           />
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <Input
-              label="Start Date"
-              type="date"
-              value={formData.start_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-              required
-            />
-            <Input
-              label="Target Date"
-              type="date"
-              value={formData.target_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
-            />
-          </div>
-
-          {/* Description */}
+          {/* Target Date */}
           <Input
-            label="Description"
-            as="textarea"
-            value={formData.description}
-            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            rows={3}
-            placeholder="Optional: Add details about your goal..."
+            label="Target Date"
+            type="date"
+            value={formData.target_date}
+            onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
+            placeholder="When do you want to achieve this goal?"
           />
 
-          {/* Color and Priority */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
-                Color Theme
-              </label>
-              <div className="flex space-x-2">
-                {colors.map(color => (
-                  <ColorPickerButton
-                    key={color}
-                    color={color}
-                    isSelected={formData.color === color}
-                    onClick={() => setFormData(prev => ({ ...prev, color }))}
-                  />
-                ))}
-              </div>
-            </div>
-            <Select
-              label="Priority"
-              value={formData.priority}
-              onChange={(value) => setFormData(prev => ({ ...prev, priority: Number(value) }))}
-              options={[
-                { value: 0, label: "Normal" },
-                { value: 1, label: "High" },
-                { value: 2, label: "Urgent" },
-              ]}
-            />
-          </div>
+          {/* Advanced Options Toggle */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-between w-full p-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <span>Advanced Options</span>
+              <svg
+                className={`h-5 w-5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-          {/* Goal Images */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Goal Images
-            </label>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-              Add inspiring images to visualize your goal. Upload photos of what you're saving for or motivation images.
-            </p>
-            <ImageUpload
-              images={formData.images || []}
-              onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
-              maxImages={5}
-            />
+            {showAdvanced && (
+              <div className="mt-4 space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                {/* Current Amount */}
+                <Input
+                  label="Current Amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.current_amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, current_amount: e.target.value }))}
+                  placeholder="0.00"
+                />
+
+                {/* Currency */}
+                <Select
+                  label="Currency"
+                  value={formData.currency}
+                  onChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
+                  options={[
+                    { value: "INR", label: "INR - Indian Rupee" },
+                    { value: "USD", label: "USD - US Dollar" },
+                    { value: "EUR", label: "EUR - Euro" },
+                    { value: "GBP", label: "GBP - British Pound" },
+                    { value: "JPY", label: "JPY - Japanese Yen" },
+                    { value: "CAD", label: "CAD - Canadian Dollar" },
+                    { value: "AUD", label: "AUD - Australian Dollar" },
+                  ]}
+                />
+
+                {/* Start Date */}
+                <Input
+                  label="Start Date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                />
+
+                {/* Description */}
+                <Input
+                  label="Description"
+                  as="textarea"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  placeholder="Optional: Add details about your goal..."
+                />
+
+                {/* Color Theme */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Color Theme
+                  </label>
+                  <div className="flex space-x-2">
+                    {colors.map(color => (
+                      <ColorPickerButton
+                        key={color}
+                        color={color}
+                        isSelected={formData.color === color}
+                        onClick={() => setFormData(prev => ({ ...prev, color }))}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Priority */}
+                <Select
+                  label="Priority"
+                  value={formData.priority}
+                  onChange={(value) => setFormData(prev => ({ ...prev, priority: Number(value) }))}
+                  options={[
+                    { value: 0, label: "Normal" },
+                    { value: 1, label: "High" },
+                    { value: 2, label: "Urgent" },
+                  ]}
+                />
+
+                {/* Goal Images */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Goal Images
+                  </label>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                    Add inspiring images to visualize your goal.
+                  </p>
+                  <ImageUpload
+                    images={formData.images || []}
+                    onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                    maxImages={5}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form Actions */}

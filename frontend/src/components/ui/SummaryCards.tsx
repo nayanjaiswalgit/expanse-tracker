@@ -22,7 +22,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
   hiddenPlaceholder = "••••"
 }) => {
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-4 gap-3 w-90">
       {cards.map((card) => {
         const Icon = card.icon;
 
@@ -34,7 +34,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
         return (
           <div
             key={card.id}
-            className="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20 dark:border-white/10"
+            className="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20 dark:border-white/10 w-[9rem]"
           >
             <div className="flex items-center justify-between">
               <div>

@@ -550,13 +550,6 @@ const ProLandingPage: React.FC = () => {
                 Sign up for free and set up your financial goals.
               </p>
             </motion.div>
-            <motion.div
-              className="pro-step-arrow"
-              variants={itemVariants}
-              whileHover={{ scale: 1.1 }}
-            >
-              &rarr;
-            </motion.div>
             {/* Step 2 */}
             <motion.div
               className="pro-step"

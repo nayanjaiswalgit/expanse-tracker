@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../../api';
-import type { Account, BalanceHistory } from '../../../../types';
+import type { Account, BalanceRecord } from '../../../../types';
 
 // Query Keys
 export const accountKeys = {
@@ -54,31 +54,52 @@ export function useDeleteAccount() {
   });
 }
 
-// Balance History
-export const balanceHistoryKeys = {
-  all: ['balance-history'] as const,
-  lists: () => [...balanceHistoryKeys.all, 'list'] as const,
-  list: (accountId: number) => [...balanceHistoryKeys.lists(), accountId] as const,
+// Balance Records (Unified)
+export const balanceRecordKeys = {
+  all: ['balance-records'] as const,
+  lists: () => [...balanceRecordKeys.all, 'list'] as const,
+  list: (accountId: number) => [...balanceRecordKeys.lists(), accountId] as const,
 };
 
-export function useBalanceHistory(accountId: number) {
+export function useBalanceRecords(accountId: number) {
   return useQuery({
-    queryKey: balanceHistoryKeys.list(accountId),
-    queryFn: () => apiClient.getAccountBalanceHistory(accountId),
+    queryKey: balanceRecordKeys.list(accountId),
+    queryFn: () => apiClient.getAccountBalanceRecords(accountId),
     enabled: !!accountId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-export function useCreateBalanceHistoryEntry() {
+export function useCreateBalanceRecord() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (entry: Omit<BalanceHistory, 'id' | 'created_at' | 'updated_at'>) =>
-      apiClient.createBalanceHistoryEntry(entry),
+    mutationFn: (entry: Omit<BalanceRecord, 'id' | 'created_at' | 'updated_at' | 'account_name' | 'account_type' | 'month_name' | 'date_display' | 'has_discrepancy' | 'balance_status' | 'year' | 'month' | 'entry_type_display' | 'reconciliation_status_display'>) =>
+      apiClient.createBalanceRecord(entry),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: balanceHistoryKeys.list(variables.account) });
+      queryClient.invalidateQueries({ queryKey: balanceRecordKeys.list(variables.account) });
       queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
     },
   });
 }
+
+export function useBulkUpdateMonthlyBalances() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ updates, date }: {
+      updates: Array<{
+        account_id: number;
+        balance: number;
+        notes?: string;
+      }>;
+      date?: string;
+    }) => apiClient.bulkUpdateMonthlyBalances(updates, date),
+    onSuccess: () => {
+      // Invalidate all account and balance record queries
+      queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: balanceRecordKeys.all });
+    },
+  });
+}
+
