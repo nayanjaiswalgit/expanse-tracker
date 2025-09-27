@@ -20,6 +20,8 @@ interface SelectProps {
   allowClear?: boolean;
   searchPlaceholder?: string;
   maxHeight?: string;
+  autoWidth?: boolean;
+  minWidth?: string;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -35,6 +37,8 @@ export const Select: React.FC<SelectProps> = ({
   allowClear = true,
   searchPlaceholder = "Search options...",
   maxHeight = "240px",
+  autoWidth = false,
+  minWidth = "120px",
   ...props
 }) => {
   return (
@@ -51,6 +55,8 @@ export const Select: React.FC<SelectProps> = ({
       allowClear={allowClear}
       searchPlaceholder={searchPlaceholder}
       maxHeight={maxHeight}
+      autoWidth={autoWidth}
+      minWidth={minWidth}
     />
   );
 };

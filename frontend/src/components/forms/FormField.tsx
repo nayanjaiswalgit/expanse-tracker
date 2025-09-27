@@ -1,10 +1,10 @@
-import React from 'react';
 import { Controller, FieldValues } from 'react-hook-form';
 import { FormFieldProps } from '../../types/forms';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { CurrencyField } from '../ui/CurrencyField';
 import { TagInput } from '../ui/TagInput';
+import { Calendar, Check } from 'lucide-react';
 import clsx from 'clsx';
 
 export function FormField<T extends FieldValues>({
@@ -43,6 +43,14 @@ export function FormField<T extends FieldValues>({
             max={config.max}
             {...field}
             onChange={(e) => field.onChange(Number(e.target.value))}
+            className={clsx(
+              commonProps.className,
+              // Hide default number input arrows with Tailwind utilities
+              '[&::-webkit-outer-spin-button]:appearance-none',
+              '[&::-webkit-inner-spin-button]:appearance-none',
+              '[&::-webkit-inner-spin-button]:m-0',
+              '[appearance:textfield]' // For Firefox
+            )}
           />
         );
 
@@ -85,11 +93,23 @@ export function FormField<T extends FieldValues>({
             <div className="relative flex items-center justify-center">
               <input
                 type="checkbox"
-                className="h-5 w-5 rounded border-2 border-gray-300 bg-white text-blue-600 focus:ring-blue-500 focus:ring-offset-0 focus:ring-2 transition-all duration-200 dark:border-gray-500 dark:bg-gray-700 checked:border-blue-600 checked:bg-blue-600 hover:border-blue-400 dark:hover:border-blue-400"
+                className="sr-only"
                 disabled={disabled || config.disabled}
                 {...field}
                 checked={field.value}
               />
+              <div className={clsx(
+                'h-5 w-5 rounded border-2 flex items-center justify-center transition-all duration-200',
+                'border-gray-300 bg-white dark:border-gray-500 dark:bg-gray-700',
+                'hover:border-blue-400 dark:hover:border-blue-400',
+                'focus-within:ring-2 focus-within:ring-blue-500/20',
+                field.value && 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500',
+                (disabled || config.disabled) && 'opacity-50 cursor-not-allowed'
+              )}>
+                {field.value && (
+                  <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                )}
+              </div>
             </div>
             <div className="flex-1">
               <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
@@ -177,11 +197,20 @@ export function FormField<T extends FieldValues>({
 
       case 'date':
         return (
-          <Input
-            {...commonProps}
-            type="date"
-            {...field}
-          />
+          <div className="relative">
+            <Input
+              {...commonProps}
+              type="date"
+              {...field}
+              className={clsx(
+                commonProps.className,
+                'pr-10' // Add padding for calendar icon
+              )}
+            />
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+            </div>
+          </div>
         );
 
       case 'tags':

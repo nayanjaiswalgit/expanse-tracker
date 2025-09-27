@@ -29,6 +29,7 @@ import MonthlyAnalysis from './features/dashboard/MonthlyAnalysis';
 import TelegramIntegration from './features/settings/TelegramIntegration';
 import PlanCustomization from './pages/PlanCustomization';
 import RecurringInvestments from './features/finance/RecurringInvestments';
+import { MonthlyBalances } from './features/finance/MonthlyBalances';
 
 // Layout
 import { Layout } from './components/layout';
@@ -80,6 +81,7 @@ const router = createBrowserRouter([
                             { path: 'telegram-integration', element: withErrorBoundary(TelegramIntegration) },
                             { path: 'plan-customization', element: withErrorBoundary(PlanCustomization) },
                             { path: 'recurring-investments', element: withErrorBoundary(RecurringInvestments) },
+                            { path: 'monthly-balances', element: withErrorBoundary(MonthlyBalances) },
                             // Old routes redirects
                             { path: 'upload', element: <Navigate to="/accounts" replace /> },
                             { path: 'social', element: <Navigate to="/expenses" replace /> },

@@ -30,28 +30,93 @@ export interface User {
 
 export interface Account {
   id: number;
-  user_id: number;
+  // Basic Information
   name: string;
+  description?: string;
   account_type: 'checking' | 'savings' | 'credit' | 'investment' | 'loan' | 'cash' | 'other';
+  status: 'active' | 'inactive' | 'closed' | 'frozen' | 'pending';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+
+  // Financial Information
   balance: string;
+  available_balance: string;
   currency: string;
-  is_active: boolean;
+  credit_limit?: string;
+  minimum_balance: string;
+  balance_status?: 'below_minimum' | 'over_limit' | 'zero_or_negative' | 'normal';
+
+  // Institution Information
   institution?: string;
+  institution_code?: string;
   account_number?: string;
-  account_number_last4?: string;
-  tags?: string[];
+  account_number_masked?: string;
+
+  // Account Settings
+  is_active: boolean;
+  is_primary: boolean;
+  include_in_budget: boolean;
+  track_balance: boolean;
+
+  // Dates
+  opened_date?: string;
+  closed_date?: string;
+  last_sync_date?: string;
+  days_since_opened?: number;
+
+  // Additional Information
+  interest_rate?: string;
+  tags: string[];
+  metadata: Record<string, any>;
+
+  // Timestamps
   created_at: string;
   updated_at: string;
 }
 
-export interface BalanceHistory {
+export interface BalanceRecord {
   id: number;
-  account_id: number;
-  old_balance: string;
-  new_balance: string;
-  change_amount: string;
-  reason: 'manual_update' | 'transaction' | 'correction' | 'other';
-  description?: string;
+  account: number;
+  account_name: string;
+  account_type: string;
+
+  // Core Information
+  balance: string;
+  date: string;
+  entry_type: 'daily' | 'monthly' | 'weekly' | 'manual' | 'reconciliation';
+  entry_type_display: string;
+
+  // Statement/Reconciliation Fields
+  statement_balance?: string;
+  reconciliation_status: 'pending' | 'reconciled' | 'discrepancy' | 'investigation';
+  reconciliation_status_display: string;
+  difference: string;
+
+  // Transaction Analysis
+  total_income: string;
+  total_expenses: string;
+  calculated_change: string;
+  actual_change: string;
+  missing_transactions: string;
+
+  // Period Information
+  period_start?: string;
+  period_end?: string;
+  is_month_end: boolean;
+  year?: number;
+  month?: number;
+  month_name: string;
+  date_display: string;
+
+  // Additional Information
+  notes?: string;
+  source?: string;
+  confidence_score?: string;
+  metadata: Record<string, any>;
+
+  // Computed fields
+  has_discrepancy: boolean;
+  balance_status: string;
+
   created_at: string;
   updated_at: string;
 }

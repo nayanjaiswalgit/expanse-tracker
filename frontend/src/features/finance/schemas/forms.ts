@@ -157,10 +157,16 @@ export const merchantPatternSchema = z.object({
 
 // Extended Account Schema for AccountsManagement
 export const accountManagementSchema = z.object({
+  // Basic Information
   name: z
     .string()
     .min(1, 'Account name is required')
     .max(255, 'Account name must be less than 255 characters'),
+  description: z
+    .string()
+    .max(500, 'Description must be less than 500 characters')
+    .optional()
+    .or(z.literal('')),
   account_type: z.enum([
     'checking',
     'savings',
@@ -172,17 +178,63 @@ export const accountManagementSchema = z.object({
   ], {
     required_error: 'Please select an account type',
   }),
+  status: z.enum([
+    'active',
+    'inactive',
+    'closed',
+    'frozen',
+    'pending',
+  ], {
+    required_error: 'Please select an account status',
+  }).default('active'),
+  priority: z.enum([
+    'low',
+    'medium',
+    'high',
+    'critical',
+  ], {
+    required_error: 'Please select a priority level',
+  }).default('medium'),
+
+  // Financial Information
   balance: z
     .number()
     .or(z.string().transform((val) => Number(val)).refine((val) => !isNaN(val), 'Balance must be a valid number'))
     .default(0),
+  available_balance: z
+    .number()
+    .or(z.string().transform((val) => Number(val)).refine((val) => !isNaN(val), 'Available balance must be a valid number'))
+    .default(0),
+  minimum_balance: z
+    .number()
+    .or(z.string().transform((val) => Number(val)).refine((val) => !isNaN(val), 'Minimum balance must be a valid number'))
+    .default(0),
+  credit_limit: z
+    .number()
+    .or(z.string().transform((val) => Number(val)).refine((val) => !isNaN(val), 'Credit limit must be a valid number'))
+    .nullable()
+    .optional(),
+  interest_rate: z
+    .number()
+    .min(0, 'Interest rate must be positive')
+    .max(100, 'Interest rate must be less than 100%')
+    .or(z.string().transform((val) => Number(val)).refine((val) => !isNaN(val) && val >= 0 && val <= 100, 'Interest rate must be between 0 and 100'))
+    .nullable()
+    .optional(),
   currency: z
     .string()
     .length(3, 'Currency must be a 3-letter code')
     .default('USD'),
+
+  // Institution Information
   institution: z
     .string()
     .max(255, 'Institution name must be less than 255 characters')
+    .optional()
+    .or(z.literal('')),
+  institution_code: z
+    .string()
+    .max(20, 'Institution code must be less than 20 characters')
     .optional()
     .or(z.literal('')),
   account_number: z
@@ -190,7 +242,33 @@ export const accountManagementSchema = z.object({
     .max(50, 'Account number must be less than 50 characters')
     .optional()
     .or(z.literal('')),
+  account_number_masked: z
+    .string()
+    .max(50, 'Masked account number must be less than 50 characters')
+    .optional()
+    .or(z.literal('')),
+
+  // Account Settings
   is_active: z.boolean().default(true),
+  is_primary: z.boolean().default(false),
+  include_in_budget: z.boolean().default(true),
+  track_balance: z.boolean().default(true),
+
+  // Dates
+  opened_date: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine((val) => !val || !isNaN(Date.parse(val)), 'Invalid date format'),
+  closed_date: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine((val) => !val || !isNaN(Date.parse(val)), 'Invalid date format'),
+
+  // Additional Information
+  tags: z.array(z.string()).default([]),
+  metadata: z.record(z.any()).default({}),
 });
 
 // Enhanced Goal Schema for Goals component (with additional fields)
@@ -311,4 +389,45 @@ export type MerchantPatternFormData = z.infer<typeof merchantPatternSchema>;
 export type AccountManagementFormData = z.infer<typeof accountManagementSchema>;
 export type GoalEnhancedFormData = z.infer<typeof goalEnhancedSchema>;
 export type BankStatementUploadFormData = z.infer<typeof bankStatementUploadSchema>;
+// Monthly Balance Schema
+export const monthlyBalanceSchema = z.object({
+  year: z
+    .number()
+    .int()
+    .min(2000, 'Year must be 2000 or later')
+    .max(2100, 'Year must be 2100 or earlier'),
+  month: z
+    .number()
+    .int()
+    .min(1, 'Month must be between 1 and 12')
+    .max(12, 'Month must be between 1 and 12'),
+  balance: z
+    .number()
+    .or(z.string().refine((val) => !isNaN(Number(val)), 'Balance must be a valid number')),
+  statement_balance: z
+    .number()
+    .or(z.string().refine((val) => !isNaN(Number(val)), 'Statement balance must be a valid number'))
+    .optional(),
+  total_income: z
+    .number()
+    .min(0, 'Total income must be non-negative')
+    .or(z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, 'Total income must be non-negative'))
+    .default(0),
+  total_expenses: z
+    .number()
+    .min(0, 'Total expenses must be non-negative')
+    .or(z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, 'Total expenses must be non-negative'))
+    .default(0),
+  calculated_change: z
+    .number()
+    .or(z.string().refine((val) => !isNaN(Number(val)), 'Calculated change must be a valid number'))
+    .default(0),
+  reconciled: z.boolean().default(false),
+  notes: z
+    .string()
+    .max(1000, 'Notes must be less than 1000 characters')
+    .optional(),
+});
+
 export type TransactionSettingsFormData = z.infer<typeof transactionSettingsSchema>;
+export type MonthlyBalanceFormData = z.infer<typeof monthlyBalanceSchema>;

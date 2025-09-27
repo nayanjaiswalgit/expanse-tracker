@@ -553,9 +553,9 @@ export const GroupExpenses: React.FC = () => {
           <Select
             label="Group Type"
             value={newGroup.group_type}
-            onChange={(e) => setNewGroup(prev => ({
+            onChange={(value) => setNewGroup(prev => ({
               ...prev,
-              group_type: e.target.value as "one-to-one" | "multi-person"
+              group_type: value as "one-to-one" | "multi-person"
             }))}
             options={[
               { value: "multi-person", label: "Multi-person group" },

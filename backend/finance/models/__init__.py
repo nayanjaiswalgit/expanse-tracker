@@ -13,7 +13,7 @@ from core.models.base import (
 )
 
 # Import all financial models
-from .accounts import Account
+from .accounts import Account, BalanceRecord
 from .transactions import BaseTransaction, Transaction, Category, Tag
 from .investments import Investment
 from .goals import Goal, GoalImage, GroupExpense, GroupExpenseShare
@@ -32,6 +32,7 @@ __all__ = [
     "MetadataMixin",
     # Account models
     "Account",
+    "BalanceRecord",
     # Transaction models
     "BaseTransaction",
     "Transaction",

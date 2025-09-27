@@ -103,7 +103,7 @@ export const SplitEditor = ({ splits, totalAmount, onSplitsChange }: SplitEditor
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h4 className="text-sm font-medium text-gray-900">Category Splits</h4>
+        <h4 className="text-sm font-medium theme-text-primary">Category Splits</h4>
         <Button
           onClick={addSplit}
           size="sm"
@@ -116,11 +116,11 @@ export const SplitEditor = ({ splits, totalAmount, onSplitsChange }: SplitEditor
 
       <div className="space-y-3">
         {localSplits.map((split) => (
-          <div key={split.id} className="flex items-center space-x-2 p-3 bg-gray-50 rounded">
+          <div key={split.id} className="flex items-center space-x-2 p-3 bg-secondary-50 dark:bg-secondary-800 rounded">
             <div className="flex-1">
               <Select
                 value={split.categoryId}
-                onChange={(e) => updateSplit(split.id, 'categoryId', e.target.value)}
+                onChange={(value) => updateSplit(split.id, 'categoryId', value)}
                 options={[{ value: "", label: "Select category" }, ...categories.map(category => ({ value: category.id.toString(), label: category.name })) ]}
                 className="w-full px-2 py-1 text-sm"
               />
@@ -174,16 +174,16 @@ export const SplitEditor = ({ splits, totalAmount, onSplitsChange }: SplitEditor
       </div>
 
       <div className="flex justify-between text-sm">
-        <div className={`font-medium ${Math.abs(totalPercentage - 100) > 0.1 ? 'text-red-600' : 'text-green-600'}`}>
+        <div className={`font-medium ${Math.abs(totalPercentage - 100) > 0.1 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
           Total: {totalPercentage.toFixed(1)}%
         </div>
-        <div className={`font-medium ${Math.abs(totalSplitAmount - totalAmount) > 0.01 ? 'text-red-600' : 'text-green-600'}`}>
+        <div className={`font-medium ${Math.abs(totalSplitAmount - totalAmount) > 0.01 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
           Amount: ${totalSplitAmount.toFixed(2)} / ${totalAmount.toFixed(2)}
         </div>
       </div>
 
       {Math.abs(totalPercentage - 100) > 0.1 && (
-        <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
           Warning: Total percentage should equal 100%
         </div>
       )}

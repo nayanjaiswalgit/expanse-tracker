@@ -25,10 +25,19 @@ import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { ColorPickerButton } from '../../components/ui/ColorPickerButton';
 import { Select } from '../../components/ui/Select';
-import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SummaryCards } from '../../components/ui/SummaryCards';
 import { FinancePageHeader } from '../../components/ui/FinancePageHeader';
-import type { Goal } from '../types';
+import { ImageUpload } from '../../components/ui/ImageUpload';
+import { GoalDetail } from './GoalDetail';
+import type { Goal } from '../../types';
+
+interface UploadedImage {
+  id: string;
+  file: File;
+  preview: string;
+  caption?: string;
+}
 
 interface GoalFormData {
   name: string;
@@ -44,6 +53,7 @@ interface GoalFormData {
   auto_track: boolean;
   color: string;
   priority: number;
+  images?: UploadedImage[];
 }
 
 const goalTypeIcons = {
@@ -83,6 +93,7 @@ export const Goals = () => {
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
   const [progressAmount, setProgressAmount] = useState('');
   const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
+  const [selectedGoalDetail, setSelectedGoalDetail] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>({
     name: '',
     description: '',
@@ -96,7 +107,8 @@ export const Goals = () => {
     account: undefined,
     auto_track: false,
     color: '#3B82F6',
-    priority: 0
+    priority: 0,
+    images: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -129,7 +141,8 @@ export const Goals = () => {
       account: undefined,
       auto_track: false,
       color: '#3B82F6',
-      priority: 0
+      priority: 0,
+      images: []
     });
   };
 
@@ -171,11 +184,40 @@ export const Goals = () => {
     setIsSubmitting(true);
 
     try {
-      const goalData = {
-        ...formData,
-        target_date: formData.target_date || undefined,
-        status: 'active' as const
-      };
+      // Prepare form data for submission
+      const goalData = new FormData();
+
+      // Add goal fields
+      goalData.append('name', formData.name);
+      goalData.append('description', formData.description || '');
+      goalData.append('goal_type', formData.goal_type);
+      goalData.append('target_amount', formData.target_amount);
+      goalData.append('current_amount', formData.current_amount);
+      goalData.append('currency', formData.currency);
+      goalData.append('start_date', formData.start_date);
+      if (formData.target_date) {
+        goalData.append('target_date', formData.target_date);
+      }
+      if (formData.category) {
+        goalData.append('category', formData.category.toString());
+      }
+      if (formData.account) {
+        goalData.append('account', formData.account.toString());
+      }
+      goalData.append('auto_track', formData.auto_track.toString());
+      goalData.append('color', formData.color);
+      goalData.append('priority', formData.priority.toString());
+      goalData.append('status', 'active');
+
+      // Add images
+      if (formData.images && formData.images.length > 0) {
+        formData.images.forEach((image, index) => {
+          goalData.append('images', image.file);
+          if (image.caption) {
+            goalData.append(`image_captions_${index}`, image.caption);
+          }
+        });
+      }
 
       if (editingGoal) {
         await updateGoalMutation.mutateAsync({ id: editingGoal.id, data: goalData });
@@ -184,6 +226,7 @@ export const Goals = () => {
       }
 
       handleCloseModal();
+      showSuccess('Goal saved successfully!');
     } catch (error) {
       console.error('Failed to save goal:', error);
       showError('Failed to save goal', 'Please try again.');
@@ -244,6 +287,53 @@ export const Goals = () => {
   const activeGoals = goals.filter(goal => goal.status === 'active');
   const completedGoals = goals.filter(goal => goal.status === 'completed');
   const otherGoals = goals.filter(goal => !['active', 'completed'].includes(goal.status));
+
+  // If a goal is selected for detail view, show the detail page
+  if (selectedGoalDetail) {
+    return (
+      <GoalDetail
+        goal={selectedGoalDetail}
+        onBack={() => setSelectedGoalDetail(null)}
+        onEdit={() => {
+          setEditingGoal(selectedGoalDetail);
+          setFormData({
+            name: selectedGoalDetail.name,
+            description: selectedGoalDetail.description || '',
+            goal_type: selectedGoalDetail.goal_type || 'savings',
+            target_amount: selectedGoalDetail.target_amount,
+            current_amount: selectedGoalDetail.current_amount,
+            currency: selectedGoalDetail.currency || 'USD',
+            start_date: selectedGoalDetail.start_date || new Date().toISOString().split('T')[0],
+            target_date: selectedGoalDetail.target_date || '',
+            category: undefined,
+            account: undefined,
+            auto_track: false,
+            color: selectedGoalDetail.color || '#3B82F6',
+            priority: 0,
+            images: []
+          });
+          setSelectedGoalDetail(null);
+          setShowAddModal(true);
+        }}
+        onDelete={() => {
+          setGoalToDelete(selectedGoalDetail);
+          setSelectedGoalDetail(null);
+        }}
+        onUpdateProgress={() => {
+          setProgressGoal(selectedGoalDetail);
+          setProgressAmount(selectedGoalDetail.current_amount);
+          setSelectedGoalDetail(null);
+          setShowProgressModal(true);
+        }}
+        onToggleStatus={(status) => {
+          handleToggleStatus(selectedGoalDetail, status);
+          setSelectedGoalDetail(null);
+        }}
+        showAmounts={showAmounts}
+        onToggleAmounts={() => setShowAmounts(!showAmounts)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -341,40 +431,56 @@ export const Goals = () => {
                   const progressPercent = Math.min(goal.progress_percentage, 100);
                   
                   return (
-                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer" onClick={() => setSelectedGoalDetail(goal)}>
                       <div className="flex items-start justify-between mb-3">
-                        <div className={`p-2 rounded-xl ${colorClass}`}>
-                          <IconComponent className="h-5 w-5" />
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg ${colorClass}`}>
+                            <IconComponent className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white">{goal.name}</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{getGoalTypeLabel(goal.goal_type)}</p>
+                          </div>
                         </div>
-                        <div className="flex space-x-0.5">
+                        <div className="flex items-center space-x-1">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setProgressGoal(goal);
                               setProgressAmount(goal.current_amount);
                               setShowProgressModal(true);
                             }}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             title="Update progress"
                           >
                             <Target className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => handleEditGoal(goal)}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditGoal(goal);
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             title="Edit goal"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => handleToggleStatus(goal, 'paused')}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleStatus(goal, 'paused');
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             title="Pause goal"
                           >
                             <Pause className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteGoal(goal)}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteGoal(goal);
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             title="Delete goal"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -383,25 +489,20 @@ export const Goals = () => {
                       </div>
 
                       <div className="space-y-3">
-                        <div>
-                          <h3 className="font-semibold text-base text-gray-900 dark:text-white">{goal.name}</h3>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">{getGoalTypeLabel(goal.goal_type)}</p>
-                          {goal.description && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">{goal.description}</p>
-                          )}
-                        </div>
+                        {goal.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{goal.description}</p>
+                        )}
 
-                        {/* Progress Bar */}
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Progress</span>
-                            <span className="text-xs font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md">
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
+                            <span className="text-xs font-semibold text-gray-900 dark:text-white">
                               {progressPercent.toFixed(1)}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
                             <div
-                              className="h-2.5 rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-emerald-500 to-teal-500"
+                              className="h-1.5 rounded-full bg-emerald-500 transition-all duration-300"
                               style={{
                                 width: `${progressPercent}%`,
                                 backgroundColor: goal.color || '#10B981'
@@ -411,22 +512,22 @@ export const Goals = () => {
                         </div>
 
                         {showAmounts && (
-                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 space-y-1.5">
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-600 dark:text-gray-300">Current:</span>
+                              <span className="text-gray-600 dark:text-gray-400">Current:</span>
                               <span className="font-medium text-gray-900 dark:text-white">
                                 {formatCurrency(parseFloat(goal.current_amount), authState.user)}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-600 dark:text-gray-300">Target:</span>
+                              <span className="text-gray-600 dark:text-gray-400">Target:</span>
                               <span className="font-medium text-gray-900 dark:text-white">
                                 {formatCurrency(parseFloat(goal.target_amount), authState.user)}
                               </span>
                             </div>
-                            <div className="flex justify-between text-xs border-t border-gray-200 dark:border-gray-600 pt-1.5">
-                              <span className="text-gray-600 dark:text-gray-300">Remaining:</span>
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            <div className="flex justify-between text-xs border-t border-gray-200 dark:border-gray-600 pt-2">
+                              <span className="text-gray-600 dark:text-gray-400">Remaining:</span>
+                              <span className="font-medium text-emerald-600 dark:text-emerald-400">
                                 {formatCurrency(parseFloat(goal.remaining_amount), authState.user)}
                               </span>
                             </div>
@@ -434,18 +535,18 @@ export const Goals = () => {
                         )}
 
                         {goal.target_date && (
-                          <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
-                            <Calendar className="h-3 w-3 mr-1.5 text-gray-500" />
-                            <span>Target: {new Date(goal.target_date).toLocaleDateString()}</span>
+                          <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            <span>{new Date(goal.target_date).toLocaleDateString()}</span>
                           </div>
                         )}
 
                         <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-700">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-md ${statusColors[goal.status]}`}>
-                            {goal.status.charAt(0).toUpperCase() + goal.status.slice(1)}
+                            {goal.status?.charAt(0).toUpperCase() + (goal.status?.slice(1) || '') || 'Unknown'}
                           </span>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {goal.goal_type.charAt(0).toUpperCase() + goal.goal_type.slice(1).replace('_', ' ')}
+                            {goal.goal_type?.charAt(0).toUpperCase() + (goal.goal_type?.slice(1).replace('_', ' ') || '') || 'Unknown'}
                           </div>
                         </div>
                       </div>
@@ -553,7 +654,7 @@ export const Goals = () => {
 
                         <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                           <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[goal.status]}`}>
-                            {goal.status.charAt(0).toUpperCase() + goal.status.slice(1)}
+                            {goal.status?.charAt(0).toUpperCase() + (goal.status?.slice(1) || '') || 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -636,7 +737,7 @@ export const Goals = () => {
             <Select
               label="Currency"
               value={formData.currency}
-              onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+              onChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
               options={[
                 { value: "INR", label: "INR - Indian Rupee" },
                 { value: "USD", label: "USD - US Dollar" },
@@ -706,12 +807,27 @@ export const Goals = () => {
             <Select
               label="Priority"
               value={formData.priority}
-              onChange={(e) => setFormData(prev => ({ ...prev, priority: Number(e.target.value) }))}
+              onChange={(value) => setFormData(prev => ({ ...prev, priority: Number(value) }))}
               options={[
                 { value: 0, label: "Normal" },
                 { value: 1, label: "High" },
                 { value: 2, label: "Urgent" },
               ]}
+            />
+          </div>
+
+          {/* Goal Images */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Goal Images
+            </label>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+              Add inspiring images to visualize your goal. Upload photos of what you're saving for or motivation images.
+            </p>
+            <ImageUpload
+              images={formData.images || []}
+              onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+              maxImages={5}
             />
           </div>
 
@@ -796,14 +912,16 @@ export const Goals = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <ConfirmDialog
         isOpen={!!goalToDelete}
         onClose={() => setGoalToDelete(null)}
         onConfirm={confirmDeleteGoal}
         title="Delete Goal"
-      >
-        Are you sure you want to delete "{goalToDelete?.name}"? This action cannot be undone.
-      </ConfirmationModal>
+        message={`Are you sure you want to delete "${goalToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

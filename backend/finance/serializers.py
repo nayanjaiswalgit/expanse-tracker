@@ -12,6 +12,7 @@ from .models import (
     GroupExpenseShare,
     Invoice,
     Account,
+    BalanceRecord,
     Category,
     Tag,
     Transaction,
@@ -108,10 +109,145 @@ class InvestmentSerializer(serializers.ModelSerializer):
 class AccountSerializer(serializers.ModelSerializer):
     """Serializer for Account model"""
 
+    # Computed fields
+    balance_status = serializers.SerializerMethodField()
+    days_since_opened = serializers.SerializerMethodField()
+
     class Meta:
         model = Account
-        fields = "__all__"
-        read_only_fields = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            # Basic Information
+            "name",
+            "description",
+            "account_type",
+            "status",
+            "priority",
+
+            # Financial Information
+            "balance",
+            "available_balance",
+            "currency",
+            "credit_limit",
+            "minimum_balance",
+            "balance_status",
+
+            # Institution Information
+            "institution",
+            "institution_code",
+            "account_number",
+            "account_number_masked",
+
+            # Account Settings
+            "is_active",
+            "is_primary",
+            "include_in_budget",
+            "track_balance",
+
+            # Dates
+            "opened_date",
+            "closed_date",
+            "last_sync_date",
+            "days_since_opened",
+
+            # Additional Information
+            "interest_rate",
+            "tags",
+            "metadata",
+
+            # Timestamps
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at", "balance_status", "days_since_opened"]
+
+    def get_balance_status(self, obj):
+        """Get balance status based on minimum balance requirements"""
+        if obj.balance < obj.minimum_balance:
+            return "below_minimum"
+        elif obj.credit_limit and obj.balance > obj.credit_limit:
+            return "over_limit"
+        elif obj.balance <= 0:
+            return "zero_or_negative"
+        else:
+            return "normal"
+
+    def get_days_since_opened(self, obj):
+        """Calculate days since account was opened"""
+        if obj.opened_date:
+            from django.utils import timezone
+            return (timezone.now().date() - obj.opened_date).days
+        return None
+
+
+class BalanceRecordSerializer(serializers.ModelSerializer):
+    """Serializer for unified balance tracking"""
+
+    account_name = serializers.CharField(source="account.name", read_only=True)
+    account_type = serializers.CharField(source="account.account_type", read_only=True)
+    month_name = serializers.CharField(read_only=True)
+    date_display = serializers.CharField(read_only=True)
+    has_discrepancy = serializers.BooleanField(read_only=True)
+    balance_status = serializers.CharField(read_only=True)
+    entry_type_display = serializers.CharField(source="get_entry_type_display", read_only=True)
+    reconciliation_status_display = serializers.CharField(source="get_reconciliation_status_display", read_only=True)
+
+    class Meta:
+        model = BalanceRecord
+        fields = [
+            "id",
+            "account",
+            "account_name",
+            "account_type",
+            # Core Information
+            "balance",
+            "date",
+            "entry_type",
+            "entry_type_display",
+            # Statement/Reconciliation Fields
+            "statement_balance",
+            "reconciliation_status",
+            "reconciliation_status_display",
+            "difference",
+            # Transaction Analysis
+            "total_income",
+            "total_expenses",
+            "calculated_change",
+            "actual_change",
+            "missing_transactions",
+            # Period Information
+            "period_start",
+            "period_end",
+            "is_month_end",
+            "year",
+            "month",
+            "month_name",
+            "date_display",
+            # Additional Information
+            "notes",
+            "source",
+            "confidence_score",
+            "metadata",
+            # Computed fields
+            "has_discrepancy",
+            "balance_status",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "created_at",
+            "updated_at",
+            "account_name",
+            "account_type",
+            "month_name",
+            "date_display",
+            "has_discrepancy",
+            "balance_status",
+            "year",
+            "month",
+            "entry_type_display",
+            "reconciliation_status_display",
+        ]
 
 
 class CategorySerializer(serializers.ModelSerializer):

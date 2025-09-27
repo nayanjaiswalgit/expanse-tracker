@@ -2,7 +2,7 @@ import axios, { type AxiosInstance } from 'axios';
 import type {
   User,
   Account,
-  BalanceHistory,
+  BalanceRecord,
   Category,
   Transaction,
   UnifiedTransaction,
@@ -446,15 +446,48 @@ class ApiClient {
     await this.client.delete(`/accounts/${id}/`);
   }
 
-  // Balance History
-  async getAccountBalanceHistory(accountId: number): Promise<BalanceHistory[]> {
-    const response = await this.client.get(`/accounts/${accountId}/balance-history/`);
+  // Unified Balance Record API
+  async getAccountBalanceRecords(accountId: number): Promise<BalanceRecord[]> {
+    const response = await this.client.get(`/accounts/${accountId}/balance_records/`);
     return response.data.results || response.data;
   }
 
-  async createBalanceHistoryEntry(entry: Omit<BalanceHistory, 'id' | 'created_at' | 'updated_at'>): Promise<BalanceHistory> {
-    const response = await this.client.post('/balance-history/', entry);
+  async createBalanceRecord(entry: Omit<BalanceRecord, 'id' | 'created_at' | 'updated_at' | 'account_name' | 'account_type' | 'month_name' | 'date_display' | 'has_discrepancy' | 'balance_status' | 'year' | 'month' | 'entry_type_display' | 'reconciliation_status_display'>): Promise<BalanceRecord> {
+    const response = await this.client.post(`/accounts/${entry.account}/add_balance_record/`, entry);
     return response.data;
+  }
+
+  // Monthly Balance Records (using unified API)
+  async getAccountMonthlyBalances(accountId: number): Promise<BalanceRecord[]> {
+    const response = await this.client.get(`/accounts/${accountId}/monthly_balances/`);
+    return response.data.results || response.data;
+  }
+
+  async getAllMonthlyBalances(): Promise<BalanceRecord[]> {
+    const response = await this.client.get('/accounts/monthly_balances_all/');
+    return response.data.results || response.data;
+  }
+
+  async getDiscrepancies(): Promise<BalanceRecord[]> {
+    const response = await this.client.get('/accounts/discrepancies/');
+    return response.data.results || response.data;
+  }
+
+  async createMonthlyBalance(entry: Omit<BalanceRecord, 'id' | 'created_at' | 'updated_at' | 'account_name' | 'account_type' | 'month_name' | 'date_display' | 'has_discrepancy' | 'balance_status' | 'year' | 'month' | 'entry_type_display' | 'reconciliation_status_display'>): Promise<BalanceRecord> {
+    // Set monthly-specific fields
+    const monthlyEntry = {
+      ...entry,
+      entry_type: 'monthly' as const,
+      is_month_end: true
+    };
+    const response = await this.client.post(`/accounts/${entry.account}/add_monthly_balance/`, monthlyEntry);
+    return response.data;
+  }
+
+  // Balance type filtering
+  async getBalanceRecordsByType(type: string = 'all'): Promise<BalanceRecord[]> {
+    const response = await this.client.get(`/accounts/balance_types/?type=${type}`);
+    return response.data.results || response.data;
   }
 
   // Categories

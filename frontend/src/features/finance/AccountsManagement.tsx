@@ -13,11 +13,13 @@ import {
   Upload as UploadIcon,
   FileText,
   History,
+  Calendar,
   CheckCircle,
   XCircle,
   Clock,
   AlertCircle,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { SummaryCards } from "../../components/ui/SummaryCards";
 import { FinancePageHeader } from "../../components/ui/FinancePageHeader";
 import { useAuth } from "../../contexts/AuthContext";
@@ -59,6 +61,57 @@ const accountTypeColors = {
   loan: "bg-orange-100 text-orange-600",
   cash: "bg-gray-100 text-gray-600",
   other: "bg-gray-100 text-gray-600",
+};
+
+const accountStatusConfig = {
+  active: {
+    icon: "🟢",
+    label: "Active",
+    color: "bg-green-100 text-green-700 border-green-200"
+  },
+  inactive: {
+    icon: "🟡",
+    label: "Inactive",
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200"
+  },
+  closed: {
+    icon: "🔴",
+    label: "Closed",
+    color: "bg-red-100 text-red-700 border-red-200"
+  },
+  frozen: {
+    icon: "🧊",
+    label: "Frozen",
+    color: "bg-blue-100 text-blue-700 border-blue-200"
+  },
+  pending: {
+    icon: "⏳",
+    label: "Pending",
+    color: "bg-gray-100 text-gray-700 border-gray-200"
+  },
+};
+
+const accountPriorityConfig = {
+  low: {
+    icon: "🔵",
+    label: "Low",
+    color: "bg-blue-50 text-blue-600 border-blue-200"
+  },
+  medium: {
+    icon: "🟡",
+    label: "Medium",
+    color: "bg-yellow-50 text-yellow-600 border-yellow-200"
+  },
+  high: {
+    icon: "🟠",
+    label: "High",
+    color: "bg-orange-50 text-orange-600 border-orange-200"
+  },
+  critical: {
+    icon: "🔴",
+    label: "Critical",
+    color: "bg-red-50 text-red-600 border-red-200"
+  },
 };
 
 const CompactUploadList: React.FC = () => {
@@ -138,7 +191,7 @@ const CompactUploadList: React.FC = () => {
 
 export const AccountsManagement = () => {
   const { state: authState } = useAuth();
-
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const {
@@ -448,6 +501,14 @@ export const AccountsManagement = () => {
           >
             <History className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => navigate('/monthly-balances')}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            title="Monthly Balances"
+          >
+            <Calendar className="w-4 h-4" />
+            Monthly Balances
+          </button>
           {accounts.length > 0 && (
             <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer">
               <UploadIcon className="w-4 h-4" />
@@ -568,6 +629,16 @@ export const AccountsManagement = () => {
                           title="Balance History"
                         >
                           <History className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/monthly-balances');
+                          }}
+                          className="p-1 text-slate-400 hover:text-green-500 ml-1"
+                          title="Monthly Balances"
+                        >
+                          <Calendar className="w-3 h-3" />
                         </button>
                         <button
                           onClick={(e) => {

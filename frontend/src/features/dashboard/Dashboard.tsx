@@ -515,9 +515,6 @@ export const Dashboard: React.FC = () => {
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Last transactions</h3>
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
-                        <Plus className="w-2 h-2 text-white" />
-                      </div>
                       <Button
                         onClick={() => navigate('/transactions/new')}
                         variant="outline"

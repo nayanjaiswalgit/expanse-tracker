@@ -288,6 +288,7 @@ export const GoalsForm = () => {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         title="Create New Goal"
+        size="lg"
       >
         <ObjectForm config={createFormConfig} />
       </Modal>
@@ -297,6 +298,7 @@ export const GoalsForm = () => {
         isOpen={!!editingGoal}
         onClose={() => setEditingGoal(null)}
         title="Edit Goal"
+        size="lg"
       >
         {editFormConfig && <ObjectForm config={editFormConfig} />}
       </Modal>

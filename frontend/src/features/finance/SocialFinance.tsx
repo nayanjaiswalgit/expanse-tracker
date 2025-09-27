@@ -825,7 +825,7 @@ export const SocialFinance: React.FC = () => {
                                 : "bg-gray-500"
                             }`}
                           >
-                            {contact.name.charAt(0).toUpperCase()}
+                            {contact.name?.charAt(0).toUpperCase() || '?'}
                           </div>
                           <div>
                             <h3 className="font-semibold text-gray-800">

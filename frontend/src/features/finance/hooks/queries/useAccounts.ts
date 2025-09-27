@@ -77,7 +77,7 @@ export function useCreateBalanceHistoryEntry() {
     mutationFn: (entry: Omit<BalanceHistory, 'id' | 'created_at' | 'updated_at'>) =>
       apiClient.createBalanceHistoryEntry(entry),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: balanceHistoryKeys.list(variables.account_id) });
+      queryClient.invalidateQueries({ queryKey: balanceHistoryKeys.list(variables.account) });
       queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
     },
   });

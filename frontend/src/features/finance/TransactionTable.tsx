@@ -297,11 +297,12 @@ export const TransactionTable = () => {
     return (
       <div
         onClick={() => startEditing(transaction.id, field, value)}
-        className={`text-sm transition-colors duration-150 flex items-center rounded-md ${
+        className={`text-sm transition-colors duration-150 truncate ${
           isEditMode
-            ? 'cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-700 hover:ring-1 hover:ring-blue-300 dark:hover:ring-blue-500'
+            ? 'cursor-text hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded px-1 py-1'
             : 'cursor-default'
         }`}
+        title={value || placeholder}
       >
         {value || <span className="theme-text-muted italic">{placeholder}</span>}
       </div>
@@ -336,6 +337,8 @@ export const TransactionTable = () => {
                 }
               }}
               options={options}
+              autoWidth={true}
+              minWidth="120px"
               placeholder={placeholder}
               searchable={true}
               allowClear={true}
@@ -1281,7 +1284,7 @@ export const TransactionTable = () => {
             <div className="min-w-0">
               <Select
                 value={(table.getColumn('account_id')?.getFilterValue() as string) ?? ''}
-                onChange={(e) => table.getColumn('account_id')?.setFilterValue(e.target.value || undefined)}
+                onChange={(value) => table.getColumn('account_id')?.setFilterValue(value || undefined)}
                 className="h-8 text-sm min-w-[140px]"
                 options={[
                   { value: "", label: "All Accounts" },
@@ -1296,7 +1299,7 @@ export const TransactionTable = () => {
             <div className="min-w-0">
               <Select
                 value={(table.getColumn('category_id')?.getFilterValue() as string) ?? ''}
-                onChange={(e) => table.getColumn('category_id')?.setFilterValue(e.target.value || undefined)}
+                onChange={(value) => table.getColumn('category_id')?.setFilterValue(value || undefined)}
                 className="h-8 text-sm min-w-[140px]"
                 options={[
                   { value: "", label: "All Categories" },

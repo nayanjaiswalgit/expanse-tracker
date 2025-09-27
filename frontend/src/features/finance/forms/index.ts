@@ -181,9 +181,10 @@ export const createAccountManagementFormConfig = (
   schema: accountManagementSchema,
   title: '', // Remove duplicate title since modal already has one
   description: isEdit
-    ? 'Update your account details below.'
-    : 'Add a new financial account to track your transactions.',
+    ? 'Update your comprehensive account details below.'
+    : 'Add a new financial account with complete management capabilities.',
   fields: [
+    // Essential Information Only
     {
       name: 'name',
       type: 'input',
@@ -197,11 +198,11 @@ export const createAccountManagementFormConfig = (
       type: 'select',
       label: 'Account Type',
       options: [
-        { value: 'checking', label: 'Checking' },
-        { value: 'savings', label: 'Savings' },
+        { value: 'checking', label: 'Checking Account' },
+        { value: 'savings', label: 'Savings Account' },
         { value: 'credit', label: 'Credit Card' },
-        { value: 'investment', label: 'Investment' },
-        { value: 'loan', label: 'Loan' },
+        { value: 'investment', label: 'Investment Account' },
+        { value: 'loan', label: 'Loan Account' },
         { value: 'cash', label: 'Cash' },
         { value: 'other', label: 'Other' },
       ],
@@ -216,8 +217,25 @@ export const createAccountManagementFormConfig = (
       step: 0.01,
       className: 'col-span-1',
     },
+    {
+      name: 'institution',
+      type: 'input',
+      label: 'Bank/Institution',
+      placeholder: 'e.g., Chase Bank, Wells Fargo',
+      className: 'col-span-1',
+      description: 'Name of your bank or financial institution',
+    },
+    {
+      name: 'account_number',
+      type: 'input',
+      label: 'Account Number',
+      placeholder: 'Enter account number (optional)',
+      className: 'col-span-1',
+      description: 'Your account number for identification',
+    },
   ],
   advancedFields: [
+    // Currency Selection (moved from main form)
     {
       name: 'currency',
       type: 'select',
@@ -231,25 +249,146 @@ export const createAccountManagementFormConfig = (
         { value: 'INR', label: '₹ INR' },
         { value: 'GBP', label: '£ GBP' },
       ],
+      description: 'Account currency (defaults to USD)',
+    },
+
+    // Account Description
+    {
+      name: 'description',
+      type: 'textarea',
+      label: 'Description',
+      placeholder: 'Account description or notes...',
+      rows: 2,
+      description: 'Optional description for this account',
+    },
+
+    // Account Status & Priority
+    {
+      name: 'status',
+      type: 'select',
+      label: 'Account Status',
+      options: [
+        { value: 'active', label: '🟢 Active' },
+        { value: 'inactive', label: '🟡 Inactive' },
+        { value: 'closed', label: '🔴 Closed' },
+        { value: 'frozen', label: '🧊 Frozen' },
+        { value: 'pending', label: '⏳ Pending' },
+      ],
+      validation: { required: true },
+      description: 'Current status of this account',
     },
     {
-      name: 'institution',
-      type: 'input',
-      label: 'Financial Institution',
-      placeholder: 'e.g., Chase Bank, Wells Fargo, State Bank of India',
+      name: 'priority',
+      type: 'select',
+      label: 'Priority Level',
+      options: [
+        { value: 'low', label: '🔵 Low Priority' },
+        { value: 'medium', label: '🟡 Medium Priority' },
+        { value: 'high', label: '🟠 High Priority' },
+        { value: 'critical', label: '🔴 Critical' },
+      ],
+      description: 'Priority for account monitoring and alerts',
+    },
+
+    // Additional Financial Information
+    {
+      name: 'available_balance',
+      type: 'number',
+      label: 'Available Balance',
+      placeholder: '0.00',
+      step: 0.01,
+      description: 'Balance excluding holds and pending transactions',
     },
     {
-      name: 'account_number',
-      type: 'input',
-      label: 'Account Number',
-      placeholder: 'Enter full account number (optional)',
-      description: 'Your complete account number for this account',
+      name: 'minimum_balance',
+      type: 'number',
+      label: 'Minimum Balance Required',
+      placeholder: '0.00',
+      step: 0.01,
+      description: 'Minimum required balance for this account',
     },
+    {
+      name: 'credit_limit',
+      type: 'number',
+      label: 'Credit Limit',
+      placeholder: '0.00',
+      step: 0.01,
+      description: 'Credit limit for credit accounts (leave empty if not applicable)',
+    },
+    {
+      name: 'interest_rate',
+      type: 'number',
+      label: 'Interest Rate (%)',
+      placeholder: '0.00',
+      step: 0.0001,
+      min: 0,
+      max: 100,
+      description: 'Annual interest rate percentage',
+    },
+
+    // Institution Details
+    {
+      name: 'institution_code',
+      type: 'input',
+      label: 'Institution Code',
+      placeholder: 'e.g., Routing number or SWIFT code',
+      description: 'Bank routing number, SWIFT code, or other institution identifier',
+    },
+    {
+      name: 'account_number_masked',
+      type: 'input',
+      label: 'Masked Account Number',
+      placeholder: 'e.g., ****1234',
+      description: 'Masked version for display purposes (e.g., ****1234)',
+    },
+
+    // Account Settings
     {
       name: 'is_active',
       type: 'checkbox',
       label: 'Account is active and in use',
-      description: 'Uncheck to mark this account as inactive or closed',
+      description: 'Uncheck to mark this account as inactive',
+    },
+    {
+      name: 'is_primary',
+      type: 'checkbox',
+      label: 'Primary account for this type',
+      description: 'Mark as the primary account for this account type',
+    },
+    {
+      name: 'include_in_budget',
+      type: 'checkbox',
+      label: 'Include in budget calculations',
+      description: 'Include this account when calculating budgets and reports',
+    },
+    {
+      name: 'track_balance',
+      type: 'checkbox',
+      label: 'Track balance changes',
+      description: 'Automatically track and log balance changes for this account',
+    },
+
+    // Important Dates
+    {
+      name: 'opened_date',
+      type: 'date',
+      label: 'Date Opened',
+      description: 'Date when this account was opened',
+    },
+    {
+      name: 'closed_date',
+      type: 'date',
+      label: 'Date Closed',
+      description: 'Date when this account was closed (if applicable)',
+    },
+
+    // Additional Information
+    {
+      name: 'tags',
+      type: 'tags',
+      label: 'Tags',
+      placeholder: 'Add tags like "personal", "business", "emergency"',
+      description: 'Tags for categorizing and organizing accounts',
     },
   ],
   layout: 'grid',
@@ -264,12 +403,28 @@ export const createAccountManagementFormConfig = (
   },
   defaultValues: {
     name: '',
+    description: '',
     account_type: 'checking',
+    status: 'active',
+    priority: 'medium',
     balance: 0,
+    available_balance: 0,
+    minimum_balance: 0,
+    credit_limit: null,
+    interest_rate: null,
     currency: Array.isArray(currencies) && currencies.length > 0 ? currencies[0].code : 'USD',
     institution: '',
+    institution_code: '',
     account_number: '',
+    account_number_masked: '',
     is_active: true,
+    is_primary: false,
+    include_in_budget: true,
+    track_balance: true,
+    opened_date: '',
+    closed_date: '',
+    tags: [],
+    metadata: {},
     ...initialData,
   },
 });

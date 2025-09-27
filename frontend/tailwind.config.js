@@ -301,6 +301,39 @@ export default {
       '.card-footer': {
         '@apply px-6 py-4 border-t border-secondary-200 dark:border-secondary-700': {},
       },
+
+      // Theme utility classes
+      '.theme-text-primary': {
+        '@apply text-secondary-900 dark:text-secondary-100': {},
+      },
+      '.theme-text-secondary': {
+        '@apply text-secondary-600 dark:text-secondary-400': {},
+      },
+      '.theme-text-muted': {
+        '@apply text-secondary-500 dark:text-secondary-500': {},
+      },
+      '.theme-bg-primary': {
+        '@apply bg-white dark:bg-secondary-900': {},
+      },
+      '.theme-bg-secondary': {
+        '@apply bg-secondary-50 dark:bg-secondary-800': {},
+      },
+      '.theme-border': {
+        '@apply border-secondary-200 dark:border-secondary-700': {},
+      },
+      '.theme-border-light': {
+        '@apply border-secondary-100 dark:border-secondary-800': {},
+      },
+      '.theme-btn-icon': {
+        '@apply text-secondary-400 hover:text-secondary-600 dark:text-secondary-500 dark:hover:text-secondary-300': {},
+        '@apply transition-colors duration-200': {},
+      },
+
+      // Alert styles
+      '.theme-alert-info': {
+        '@apply bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800': {},
+        '@apply rounded-lg p-4': {},
+      },
     };
     addComponents(newComponents);
   }],

@@ -350,8 +350,8 @@ export const UploadHistory: React.FC = () => {
                             file.status
                           )}`}
                         >
-                          {file.status.charAt(0).toUpperCase() +
-                            file.status.slice(1)}
+                          {file.status?.charAt(0).toUpperCase() +
+                            (file.status?.slice(1) || '') || 'Unknown'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

@@ -417,7 +417,7 @@ export const StatementViewer: React.FC<StatementViewerProps> = () => {
                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Keep current</option>
-                  {accountsQuery.data || [].map(account => (
+                  {(accountsQuery.data || []).map(account => (
                     <option key={account.id} value={account.id}>{account.name}</option>
                   ))}
                 </select>
@@ -431,7 +431,7 @@ export const StatementViewer: React.FC<StatementViewerProps> = () => {
                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Keep current</option>
-                  {categoriesQuery.data || [].map(category => (
+                  {(categoriesQuery.data || []).map(category => (
                     <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
                 </select>
@@ -589,7 +589,7 @@ export const StatementViewer: React.FC<StatementViewerProps> = () => {
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">No category</option>
-                        {categoriesQuery.data || [].map(category => (
+                        {(categoriesQuery.data || []).map(category => (
                           <option key={category.id} value={category.id}>{category.name}</option>
                         ))}
                       </select>
@@ -606,7 +606,7 @@ export const StatementViewer: React.FC<StatementViewerProps> = () => {
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Select account</option>
-                        {accountsQuery.data || [].map(account => (
+                        {(accountsQuery.data || []).map(account => (
                           <option key={account.id} value={account.id}>{account.name}</option>
                         ))}
                       </select>

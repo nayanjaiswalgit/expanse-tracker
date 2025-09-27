@@ -40,6 +40,7 @@ from users.serializers import (
 )
 from finance.serializers import (
     AccountSerializer,
+    BalanceRecordSerializer,
     CategorySerializer,
     TagSerializer,
     GroupExpenseShareSerializer,
@@ -361,6 +362,102 @@ class AccountViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['get'])
+    def balance_records(self, request, pk=None):
+        """Get balance records for a specific account"""
+        account = self.get_object()
+        records = fmodels.BalanceRecord.objects.filter(
+            account=account,
+            user=request.user
+        ).order_by('-date')
+
+        serializer = BalanceRecordSerializer(records, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_balance_record(self, request, pk=None):
+        """Add a balance record for a specific account"""
+        account = self.get_object()
+
+        # Add account to the request data
+        data = request.data.copy()
+        data['account'] = account.id
+
+        serializer = BalanceRecordSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def monthly_balances(self, request, pk=None):
+        """Get monthly balance records for a specific account"""
+        account = self.get_object()
+        monthly_records = fmodels.BalanceRecord.objects.filter(
+            account=account,
+            user=request.user,
+            entry_type='monthly'
+        ).order_by('-date')
+
+        serializer = BalanceRecordSerializer(monthly_records, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_monthly_balance(self, request, pk=None):
+        """Add a monthly balance record for a specific account"""
+        account = self.get_object()
+
+        # Add account to the request data and set entry type
+        data = request.data.copy()
+        data['account'] = account.id
+        data['entry_type'] = 'monthly'
+        data['is_month_end'] = True
+
+        serializer = BalanceRecordSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def monthly_balances_all(self, request):
+        """Get all monthly balance records for all user accounts"""
+        monthly_records = fmodels.BalanceRecord.objects.filter(
+            user=request.user,
+            entry_type='monthly'
+        ).order_by('-date', 'account__name')
+
+        serializer = BalanceRecordSerializer(monthly_records, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def discrepancies(self, request):
+        """Get balance records with discrepancies"""
+        balance_records = fmodels.BalanceRecord.objects.filter(
+            user=request.user
+        ).exclude(
+            difference=0,
+            missing_transactions=0
+        ).order_by('-date')
+
+        serializer = BalanceRecordSerializer(balance_records, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def balance_types(self, request):
+        """Get balance records filtered by type"""
+        entry_type = request.query_params.get('type', 'all')
+
+        queryset = fmodels.BalanceRecord.objects.filter(user=request.user)
+
+        if entry_type != 'all':
+            queryset = queryset.filter(entry_type=entry_type)
+
+        balance_records = queryset.order_by('-date')
+        serializer = BalanceRecordSerializer(balance_records, many=True)
+        return Response(serializer.data)
+
 
 
 class CategoryViewSet(viewsets.ModelViewSet):

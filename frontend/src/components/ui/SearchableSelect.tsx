@@ -20,6 +20,8 @@ interface SearchableSelectProps {
   disabled?: boolean;
   allowClear?: boolean;
   maxHeight?: string;
+  autoWidth?: boolean;
+  minWidth?: string;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -34,7 +36,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   required = false,
   disabled = false,
   allowClear = false,
-  maxHeight = "200px"
+  maxHeight = "200px",
+  autoWidth = false,
+  minWidth = "120px"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,11 +47,34 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const searchRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find(option => option.value === value);
+  const hasValue = value !== undefined && value !== null && value !== '';
 
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
     option.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calculate dynamic width based on content
+  const calculateWidth = () => {
+    if (!autoWidth || options.length === 0) return undefined;
+
+    const longestOption = options.reduce((longest, option) => {
+      const currentLength = option.label.length + (option.description ? option.description.length : 0);
+      const longestLength = longest.label.length + (longest.description ? longest.description.length : 0);
+      return currentLength > longestLength ? option : longest;
+    }, options[0]);
+
+    const selectedLength = selectedOption ?
+      selectedOption.label.length + (selectedOption.description ? selectedOption.description.length : 0) :
+      placeholder.length;
+
+    const maxLength = Math.max(longestOption?.label?.length || 0, selectedLength, placeholder.length);
+    const calculatedWidth = Math.max(maxLength * 8 + 80, parseInt(minWidth) || 120); // 8px per character + padding
+
+    return `${calculatedWidth}px`;
+  };
+
+  const dynamicWidth = calculateWidth();
 
   useEffect(() => {
     if (isOpen && searchRef.current) {
@@ -119,12 +146,18 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onChange('');
+    e.preventDefault();
+    onChange(''); // Clear the value
     setSearchTerm('');
+    setIsOpen(false); // Close the dropdown
   };
 
   return (
-    <div className={`relative ${wrapperClassName}`} ref={dropdownRef}>
+    <div
+      className={`relative ${wrapperClassName}`}
+      ref={dropdownRef}
+      style={autoWidth ? { width: dynamicWidth, minWidth } : {}}
+    >
       {label && (
         <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2.5">
           {label}
@@ -173,13 +206,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           </div>
 
           <div className="flex items-center space-x-1 ml-3">
-            {allowClear && selectedOption && (
+            {allowClear && hasValue && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors group"
+                title="Clear selection"
               >
-                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                <X className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 transition-colors" />
               </button>
             )}
             <ChevronDown
@@ -192,11 +226,15 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       </div>
 
       {isOpen && (
-        <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg"
+          style={{ minWidth: autoWidth ? minWidth : '200px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Search Input */}
-          <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+          <div className="p-2 border-b border-gray-200 dark:border-gray-600">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
               <input
                 ref={searchRef}
                 type="text"
@@ -205,8 +243,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   setSearchTerm(e.target.value);
                   setHighlightedIndex(-1);
                 }}
-                placeholder={searchPlaceholder}
-                className="w-full pl-10 pr-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200"
+                placeholder={searchPlaceholder || "Search..."}
+                className="w-full pl-7 pr-2 py-1.5 text-xs bg-transparent border-0 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500"
+                autoComplete="off"
               />
             </div>
           </div>
@@ -218,7 +257,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 <div
                   key={option.value}
                   className={`
-                    px-4 py-3 cursor-pointer transition-colors duration-150 select-none
+                    px-3 py-2 cursor-pointer transition-colors duration-150 select-none
                     ${index === highlightedIndex ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
                     ${option.value === value ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
                   `}
@@ -230,7 +269,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   onMouseEnter={() => setHighlightedIndex(index)}
                   onMouseDown={(e) => e.preventDefault()}
                 >
-                  <div className="flex flex-col space-y-1">
+                  <div className="flex flex-col space-y-0.5">
                     <span className="text-sm font-medium text-gray-900 dark:text-white leading-tight">
                       {option.label}
                     </span>
