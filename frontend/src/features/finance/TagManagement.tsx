@@ -72,7 +72,7 @@ export const TagManagement: React.FC = () => {
       <div className="text-center py-8">
         <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Tags</h3>
-        <p className="text-gray-600">{error}</p>
+        <p className="text-gray-600">{error?.message || 'Failed to load tags'}</p>
       </div>
     );
   }

@@ -126,11 +126,11 @@ export function FormField<T extends FieldValues>({
 
       case 'radio':
         return (
-          <div className="space-y-4">
-            {config.options?.map((option) => (
+          <div>
+            {config.options?.map((option, index) => (
               <label
                 key={option.value}
-                className="flex items-start space-x-4 cursor-pointer group p-4 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                className={`flex items-start space-x-4 cursor-pointer group p-4 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 ${index > 0 ? 'mt-4' : ''}`}
               >
                 <div className="relative flex items-center justify-center mt-0.5">
                   <input
@@ -275,7 +275,7 @@ export function FormField<T extends FieldValues>({
 
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">
-          {error.message}
+          {typeof error === 'string' ? error : error?.message || 'Invalid input'}
         </p>
       )}
     </div>

@@ -27,11 +27,12 @@ import { formatCurrency } from "../../utils/preferences";
 import { Modal } from "../../components/ui/Modal";
 import { Upload } from "./Upload";
 import { UploadList } from "./UploadList";
+import { BalanceHistory } from "./BalanceHistory";
 import { Button } from "../../components/ui/Button";
 import type { Account } from "../../types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/client";
-import { useBalanceHistory } from "./hooks/queries/useAccounts";
+import { useBalanceRecords } from "./hooks/queries/useAccounts";
 import { Alert } from "../../components/ui/Alert";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { useToast } from "../../components/ui/Toast";
@@ -260,8 +261,8 @@ export const AccountsManagement = () => {
 
   const [showAccountSelectModal, setShowAccountSelectModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedAccountForHistory, setSelectedAccountForHistory] = useState<Account | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isPageDragOver, setIsPageDragOver] = useState(false);
 
 
@@ -501,14 +502,6 @@ export const AccountsManagement = () => {
           >
             <History className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => navigate('/monthly-balances')}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-            title="Monthly Balances"
-          >
-            <Calendar className="w-4 h-4" />
-            Monthly Balances
-          </button>
           {accounts.length > 0 && (
             <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer">
               <UploadIcon className="w-4 h-4" />
@@ -532,129 +525,109 @@ export const AccountsManagement = () => {
         </div>
       </div>
 
-      {/* Accounts Section */}
-      <div className="mb-8">
-        {isLoadingAccounts ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-slate-400"></div>
-          </div>
-        ) : accountsError ? (
-          <Alert variant="error" title="Error loading accounts">
-            {accountsError.message}
-          </Alert>
-        ) : accounts.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <CreditCard className="w-8 h-8 text-slate-400" />
+      {/* Accounts Section - Side by Side Layout */}
+      <div className="flex gap-6 min-h-[500px]">
+        {/* Left Side - Account List */}
+        <div className={`bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 ${selectedAccountForHistory ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
+          {isLoadingAccounts ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-slate-400"></div>
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-              No accounts yet
-            </h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">
-              Add your first account to start tracking your finances
-            </p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-slate-900 dark:bg-slate-700 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Your First Account
-            </button>
-          </div>
-        ) : (
-          <div>
-            {accounts.map((account) => {
-                const Icon = accountTypeIcons[account.account_type];
-                const balance = parseFloat(account.balance.toString());
-                const isDraggedOver = dragOverAccount === account.id;
+          ) : accountsError ? (
+            <div className="p-6">
+              <Alert variant="error" title="Error loading accounts">
+                {accountsError?.message || 'Failed to load accounts'}
+              </Alert>
+            </div>
+          ) : accounts.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <CreditCard className="w-8 h-8 text-slate-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                No accounts yet
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 mb-6">
+                Add your first account to start tracking your finances
+              </p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-slate-900 dark:bg-slate-700 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Your First Account
+              </button>
+            </div>
+          ) : (
+            <div className="max-h-[400px] overflow-y-auto">
+              {accounts.map((account) => {
+                  const Icon = accountTypeIcons[account.account_type];
+                  const balance = parseFloat(account.balance.toString());
+                  const isDraggedOver = dragOverAccount === account.id;
+                  const isSelected = selectedAccountForHistory?.id === account.id;
 
-                return (
-                  <div
-                    key={account.id}
-                    className={`flex items-center justify-between py-3 px-4 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 group transition-colors ${
-                      isDraggedOver
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600'
-                        : ''
-                    }`}
-                    onDragOver={(e) => handleDragOver(e, account.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, account.id)}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={`w-6 h-6 rounded flex items-center justify-center ${accountTypeColors[account.account_type]}`}>
-                        <Icon className="w-3 h-3" />
+                  return (
+                    <div
+                      key={account.id}
+                      className={`flex items-center justify-between py-3 px-4 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 group transition-colors cursor-pointer ${
+                        isDraggedOver
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600'
+                          : ''
+                      } ${
+                        isSelected
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 dark:border-l-blue-400'
+                          : ''
+                      }`}
+                      onClick={() => {
+                        setSelectedAccountForHistory(
+                          selectedAccountForHistory?.id === account.id ? null : account
+                        );
+                      }}
+                      onDragOver={(e) => handleDragOver(e, account.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, account.id)}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`w-6 h-6 rounded flex items-center justify-center ${accountTypeColors[account.account_type]}`}>
+                          <Icon className="w-3 h-3" />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium text-slate-900 dark:text-white">
+                            {account.name}
+                          </span>
+                          <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">
+                            {account.currency}
+                            {account.institution && ` • ${account.institution}`}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="min-w-0 flex-1">
-                        <span className="font-medium text-slate-900 dark:text-white">
-                          {account.name}
-                        </span>
-                        <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">
-                          {account.currency}
-                          {account.institution && ` • ${account.institution}`}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {showBalances && (
-                        <span className={`font-medium ${
-                          balance >= 0
-                            ? 'text-slate-900 dark:text-white'
-                            : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          {formatCurrency(balance, authState.user)}
-                        </span>
-                      )}
-
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingAccount(account);
-                            setShowAddModal(true);
-                          }}
-                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedAccountForHistory(account);
-                            setShowHistoryModal(true);
-                          }}
-                          className="p-1 text-slate-400 hover:text-blue-500 ml-1"
-                          title="Balance History"
-                        >
-                          <History className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate('/monthly-balances');
-                          }}
-                          className="p-1 text-slate-400 hover:text-green-500 ml-1"
-                          title="Monthly Balances"
-                        >
-                          <Calendar className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(account);
-                          }}
-                          className="p-1 text-slate-400 hover:text-red-500 ml-1"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                      <div className="flex items-center gap-2">
+                        {showBalances && (
+                          <span className={`font-medium ${
+                            balance >= 0
+                              ? 'text-slate-900 dark:text-white'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {formatCurrency(balance, authState.user)}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+            </div>
+          )}
+        </div>
+
+        {/* Right Side - Balance History */}
+        {selectedAccountForHistory && (
+          <div className="w-1/2">
+            <BalanceHistory
+              account={selectedAccountForHistory}
+              className=""
+            />
           </div>
         )}
       </div>
@@ -771,118 +744,7 @@ export const AccountsManagement = () => {
         </div>
       </Modal>
 
-      {/* Balance History Modal */}
-      <Modal
-        isOpen={showHistoryModal}
-        title={`Balance History - ${selectedAccountForHistory?.name}`}
-        onClose={() => {
-          setShowHistoryModal(false);
-          setSelectedAccountForHistory(null);
-        }}
-        size="lg"
-      >
-        <BalanceHistoryContent
-          account={selectedAccountForHistory}
-          onClose={() => {
-            setShowHistoryModal(false);
-            setSelectedAccountForHistory(null);
-          }}
-        />
-      </Modal>
     </div>
   );
 };
 
-// Balance History Modal Content Component
-const BalanceHistoryContent: React.FC<{
-  account: Account | null;
-  onClose: () => void;
-}> = ({ account, onClose }) => {
-  const balanceHistoryQuery = useBalanceHistory(account?.id || 0);
-  const { state: authState } = useAuth();
-
-  if (!account) return null;
-
-  if (balanceHistoryQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading balance history...</span>
-      </div>
-    );
-  }
-
-  if (balanceHistoryQuery.error) {
-    return (
-      <div className="text-center p-8">
-        <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
-        <p className="text-red-600 dark:text-red-400">Failed to load balance history</p>
-        <Button onClick={onClose} className="mt-4" variant="outline">Close</Button>
-      </div>
-    );
-  }
-
-  const history = balanceHistoryQuery.data || [];
-
-  return (
-    <div className="space-y-4">
-      {/* Current Balance */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Current Balance</h4>
-        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-          {formatCurrency(parseFloat(account.balance), authState.user)}
-        </p>
-      </div>
-
-      {/* History List */}
-      <div className="space-y-2 max-h-96 overflow-y-auto">
-        <h4 className="font-medium text-gray-900 dark:text-white mb-3">Balance Changes</h4>
-
-        {history.length === 0 ? (
-          <div className="text-center p-8 text-gray-500 dark:text-gray-400">
-            <History className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-            <p>No balance changes recorded yet</p>
-          </div>
-        ) : (
-          history.map((entry) => {
-            const changeAmount = parseFloat(entry.change_amount);
-            const isIncrease = changeAmount > 0;
-
-            return (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${isIncrease ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {entry.reason.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </span>
-                  </div>
-                  {entry.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 ml-4 mt-1">
-                      {entry.description}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-400 dark:text-gray-500 ml-4">
-                    {new Date(entry.created_at).toLocaleDateString()} at {new Date(entry.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className={`font-semibold ${isIncrease ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {isIncrease ? '+' : ''}{formatCurrency(Math.abs(changeAmount), authState.user)}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Balance: {formatCurrency(parseFloat(entry.new_balance), authState.user)}
-                  </p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-};
