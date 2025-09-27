@@ -306,6 +306,7 @@ class GoalSerializer(serializers.ModelSerializer):
             "start_date",
             "currency",
             "color",
+            "thumbnail_image",
             "status",
             "created_at",
             "updated_at",
@@ -314,7 +315,12 @@ class GoalSerializer(serializers.ModelSerializer):
             "is_completed",
             "images",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "thumbnail_image"]
+
+    def validate(self, data):
+        # Remove thumbnail_image from validation since it's handled separately in the view
+        data.pop('thumbnail_image', None)
+        return data
 
 
 class GroupExpenseShareSerializer(serializers.ModelSerializer):

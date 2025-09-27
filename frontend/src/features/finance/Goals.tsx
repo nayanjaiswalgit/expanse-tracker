@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, 
   Edit2, 
@@ -23,13 +24,11 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/common/ProgressBar';
-import { ColorPickerButton } from '../../components/ui/ColorPickerButton';
 import { Select } from '../../components/ui/Select';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SummaryCards } from '../../components/ui/SummaryCards';
 import { FinancePageHeader } from '../../components/ui/FinancePageHeader';
 import { ImageUpload } from '../../components/ui/ImageUpload';
-import { GoalDetail } from './GoalDetail';
 import type { Goal } from '../../types';
 
 interface UploadedImage {
@@ -51,8 +50,6 @@ interface GoalFormData {
   category?: number;
   account?: number;
   auto_track: boolean;
-  color: string;
-  priority: number;
   images?: UploadedImage[];
 }
 
@@ -78,6 +75,8 @@ const statusColors = {
 };
 
 export const Goals = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const goalsQuery = useGoals();
   const createGoalMutation = useCreateGoal();
   const updateGoalMutation = useUpdateGoal();
@@ -93,7 +92,8 @@ export const Goals = () => {
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
   const [progressAmount, setProgressAmount] = useState('');
   const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
-  const [selectedGoalDetail, setSelectedGoalDetail] = useState<Goal | null>(null);
+  const [inlineEditGoal, setInlineEditGoal] = useState<number | null>(null);
+  const [quickAmount, setQuickAmount] = useState('');
   const [formData, setFormData] = useState<GoalFormData>({
     name: '',
     description: '',
@@ -106,8 +106,6 @@ export const Goals = () => {
     category: undefined,
     account: undefined,
     auto_track: false,
-    color: '#3B82F6',
-    priority: 0,
     images: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,9 +122,6 @@ export const Goals = () => {
     { value: 'investment', label: 'Investment Target', description: 'Build investment portfolio value' }
   ];
 
-  const colors = [
-    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'
-  ];
 
   const resetForm = () => {
     setFormData({
@@ -141,9 +136,7 @@ export const Goals = () => {
       category: undefined,
       account: undefined,
       auto_track: false,
-      color: '#3B82F6',
-      priority: 0,
-      images: []
+        images: []
     });
   };
 
@@ -158,17 +151,16 @@ export const Goals = () => {
     setFormData({
       name: goal.name,
       description: goal.description || '',
-      goal_type: goal.goal_type,
+      goal_type: goal.goal_type || 'savings',
       target_amount: goal.target_amount,
       current_amount: goal.current_amount,
-      currency: goal.currency,
-      start_date: goal.start_date,
+      currency: goal.currency || 'USD',
+      start_date: goal.start_date || new Date().toISOString().split('T')[0],
       target_date: goal.target_date || '',
-      category: goal.category,
-      account: goal.account,
-      auto_track: goal.auto_track,
-      color: goal.color,
-      priority: goal.priority
+      category: undefined,
+      account: undefined,
+      auto_track: false,
+        images: []
     });
     setEditingGoal(goal);
     setShowAddModal(true);
@@ -207,8 +199,6 @@ export const Goals = () => {
         goalData.append('account', formData.account.toString());
       }
       goalData.append('auto_track', formData.auto_track.toString());
-      goalData.append('color', formData.color);
-      goalData.append('priority', formData.priority.toString());
       goalData.append('status', 'active');
 
       // Add images
@@ -267,6 +257,20 @@ export const Goals = () => {
     }
   };
 
+  const handleQuickUpdate = async (goalId: number, amount: string) => {
+    if (!amount || isNaN(parseFloat(amount))) return;
+
+    try {
+      await updateProgressMutation.mutateAsync({ id: goalId, amount: parseFloat(amount) });
+      setInlineEditGoal(null);
+      setQuickAmount('');
+      showSuccess('Goal updated successfully!');
+    } catch (error) {
+      console.error('Failed to update goal progress:', error);
+      showError('Failed to update goal progress', 'Please try again.');
+    }
+  };
+
   const handleToggleStatus = async (goal: Goal, newStatus: 'active' | 'paused' | 'cancelled') => {
     console.log('Toggling goal status:', goal.name, 'from', goal.status, 'to', newStatus);
     try {
@@ -291,53 +295,6 @@ export const Goals = () => {
   const activeGoals = goals.filter(goal => goal.status === 'active');
   const completedGoals = goals.filter(goal => goal.status === 'completed');
   const otherGoals = goals.filter(goal => !['active', 'completed'].includes(goal.status));
-
-  // If a goal is selected for detail view, show the detail page
-  if (selectedGoalDetail) {
-    return (
-      <GoalDetail
-        goal={selectedGoalDetail}
-        onBack={() => setSelectedGoalDetail(null)}
-        onEdit={() => {
-          setEditingGoal(selectedGoalDetail);
-          setFormData({
-            name: selectedGoalDetail.name,
-            description: selectedGoalDetail.description || '',
-            goal_type: selectedGoalDetail.goal_type || 'savings',
-            target_amount: selectedGoalDetail.target_amount,
-            current_amount: selectedGoalDetail.current_amount,
-            currency: selectedGoalDetail.currency || 'USD',
-            start_date: selectedGoalDetail.start_date || new Date().toISOString().split('T')[0],
-            target_date: selectedGoalDetail.target_date || '',
-            category: undefined,
-            account: undefined,
-            auto_track: false,
-            color: selectedGoalDetail.color || '#3B82F6',
-            priority: 0,
-            images: []
-          });
-          setSelectedGoalDetail(null);
-          setShowAddModal(true);
-        }}
-        onDelete={() => {
-          setGoalToDelete(selectedGoalDetail);
-          setSelectedGoalDetail(null);
-        }}
-        onUpdateProgress={() => {
-          setProgressGoal(selectedGoalDetail);
-          setProgressAmount(selectedGoalDetail.current_amount);
-          setSelectedGoalDetail(null);
-          setShowProgressModal(true);
-        }}
-        onToggleStatus={(status) => {
-          handleToggleStatus(selectedGoalDetail, status);
-          setSelectedGoalDetail(null);
-        }}
-        showAmounts={showAmounts}
-        onToggleAmounts={() => setShowAmounts(!showAmounts)}
-      />
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -409,14 +366,14 @@ export const Goals = () => {
         </div>
       ) : goals.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
-          <div className="bg-gray-100 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+          <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <Target className="h-8 w-8 text-secondary-500 dark:text-secondary-400" />
           </div>
           <h3 className="text-lg font-medium text-secondary-900 dark:text-secondary-100 mb-2">No goals yet</h3>
           <p className="text-secondary-600 dark:text-secondary-400 mb-6">Start tracking your financial goals and make progress towards your dreams.</p>
           <button
             onClick={handleAddGoal}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Your First Goal
@@ -428,134 +385,179 @@ export const Goals = () => {
           {activeGoals.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold text-secondary-900 dark:text-secondary-100 mb-3">Active Goals ({activeGoals.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
                 {activeGoals.map((goal) => {
                   const IconComponent = getGoalIcon(goal.goal_type);
                   const colorClass = goalTypeColors[goal.goal_type as keyof typeof goalTypeColors];
                   const progressPercent = Math.min(goal.progress_percentage, 100);
                   
                   return (
-                    <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer" onClick={() => setSelectedGoalDetail(goal)}>
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg ${colorClass}`}>
-                            <IconComponent className="h-4 w-4" />
+                    <div key={goal.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-2xl shadow-md dark:shadow-gray-900/50 group overflow-visible hover:shadow-xl hover:shadow-blue-500/20 dark:hover:shadow-gray-900/90 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out cursor-pointer flex flex-col h-full transform-gpu origin-center hover:z-10 relative" onClick={() => navigate(`/goals/${goal.id}`)}>
+                      {/* Thumbnail Header */}
+                      <div className="relative h-28 overflow-hidden rounded-t-2xl">
+                        {goal.images && goal.images.length > 0 ? (
+                          <>
+                            <img
+                              src={goal.images[0].image_url}
+                              alt={goal.name}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                          </>
+                        ) : (
+                          <div className={`w-full h-full bg-gradient-to-br ${
+                            goal.goal_type === 'savings' ? 'from-emerald-500 to-emerald-600' :
+                            goal.goal_type === 'investment' ? 'from-purple-500 to-purple-600' :
+                            goal.goal_type === 'debt_payoff' ? 'from-red-500 to-red-600' :
+                            'from-blue-500 to-blue-600'
+                          } flex items-center justify-center transition-transform duration-300 group-hover:scale-105`}>
+                            <IconComponent className="h-6 w-6 text-white/80" />
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{goal.name}</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{getGoalTypeLabel(goal.goal_type)}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-1">
+                        )}
+
+                        {/* Quick Action Buttons */}
+                        <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">
                           <button
                             onClick={(e) => {
-                              console.log('Update progress clicked for goal:', goal.name);
                               e.stopPropagation();
-                              setProgressGoal(goal);
-                              setProgressAmount(goal.current_amount);
-                              setShowProgressModal(true);
+                              setInlineEditGoal(goal.id);
+                              setQuickAmount(goal.current_amount);
                             }}
-                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                            title="Update progress"
+                            className="p-1.5 bg-black/20 dark:bg-white/20 backdrop-blur-sm text-white hover:bg-green-500 hover:scale-110 rounded-md transition-all duration-200"
+                            title="Add funds"
                           >
-                            <Target className="h-4 w-4" />
+                            <Plus className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditGoal(goal);
                             }}
-                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                            className="p-1.5 bg-black/20 dark:bg-white/20 backdrop-blur-sm text-white hover:bg-blue-500 hover:scale-110 rounded-md transition-all duration-200"
                             title="Edit goal"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={(e) => {
-                              console.log('Pause button clicked for goal:', goal.name);
                               e.stopPropagation();
-                              handleToggleStatus(goal, 'paused');
+                              handleToggleStatus(goal, goal.status === 'active' ? 'paused' : 'active');
                             }}
-                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                            title="Pause goal"
+                            className="p-1.5 bg-black/20 dark:bg-white/20 backdrop-blur-sm text-white hover:bg-yellow-500 hover:scale-110 rounded-md transition-all duration-200"
+                            title={goal.status === 'active' ? 'Pause goal' : 'Resume goal'}
                           >
-                            <Pause className="h-4 w-4" />
+                            {goal.status === 'active' ? (
+                              <Pause className="h-3.5 w-3.5" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5" />
+                            )}
                           </button>
-                          <button
-                            onClick={(e) => {
-                              console.log('Delete goal clicked for:', goal.name);
-                              e.stopPropagation();
-                              handleDeleteGoal(goal);
-                            }}
-                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                            title="Delete goal"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                        </div>
+
+                        {/* Goal Type Badge */}
+                        <div className="absolute top-2 left-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-sm">
+                            {getGoalTypeLabel(goal.goal_type)?.toUpperCase()}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        {goal.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{goal.description}</p>
+                      {/* Content */}
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-base mb-3 line-clamp-1">{goal.name}</h3>
+
+                        {/* Amount Display */}
+                        {showAmounts && (
+                          <div className="mb-4">
+                            <div className="flex items-baseline justify-between">
+                              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform duration-300">
+                                {formatCurrency(parseFloat(goal.current_amount), authState.user)}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                of {formatCurrency(parseFloat(goal.target_amount), authState.user)}
+                              </div>
+                            </div>
+                          </div>
                         )}
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
-                            <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                              {progressPercent.toFixed(1)}%
+                        {/* Progress Bar */}
+                        <div className="mb-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {progressPercent.toFixed(0)}% Complete
                             </span>
+                            {goal.target_date && (
+                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                <span>{new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                              </div>
+                            )}
                           </div>
-                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                             <div
-                              className="h-1.5 rounded-full bg-emerald-500 transition-all duration-300"
+                              className="h-2 rounded-full transition-all duration-500 ease-out group-hover:shadow-lg"
                               style={{
                                 width: `${progressPercent}%`,
-                                backgroundColor: goal.color || '#10B981'
+                                backgroundColor: goal.color || (
+                                  goal.goal_type === 'savings' ? '#10B981' :
+                                  goal.goal_type === 'investment' ? '#8B5CF6' :
+                                  goal.goal_type === 'debt_payoff' ? '#EF4444' :
+                                  '#3B82F6'
+                                ),
+                                boxShadow: `0 0 10px ${goal.color || (
+                                  goal.goal_type === 'savings' ? '#10B981' :
+                                  goal.goal_type === 'investment' ? '#8B5CF6' :
+                                  goal.goal_type === 'debt_payoff' ? '#EF4444' :
+                                  '#3B82F6'
+                                )}20`
                               }}
                             />
                           </div>
                         </div>
 
-                        {showAmounts && (
-                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-600 dark:text-gray-400">Current:</span>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {formatCurrency(parseFloat(goal.current_amount), authState.user)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-600 dark:text-gray-400">Target:</span>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {formatCurrency(parseFloat(goal.target_amount), authState.user)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs border-t border-gray-200 dark:border-gray-600 pt-2">
-                              <span className="text-gray-600 dark:text-gray-400">Remaining:</span>
-                              <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                {formatCurrency(parseFloat(goal.remaining_amount), authState.user)}
-                              </span>
-                            </div>
+                        {/* Inline Edit for Quick Amount Update */}
+                        {inlineEditGoal === goal.id && (
+                          <div className="mt-4 flex gap-1">
+                            <input
+                              type="number"
+                              value={quickAmount}
+                              onChange={(e) => setQuickAmount(e.target.value)}
+                              placeholder="Amount"
+                              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleQuickUpdate(goal.id, quickAmount);
+                                } else if (e.key === 'Escape') {
+                                  setInlineEditGoal(null);
+                                  setQuickAmount('');
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickUpdate(goal.id, quickAmount);
+                              }}
+                              className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm transition-colors"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInlineEditGoal(null);
+                                setQuickAmount('');
+                              }}
+                              className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                            >
+                              ✕
+                            </button>
                           </div>
                         )}
-
-                        {goal.target_date && (
-                          <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            <span>{new Date(goal.target_date).toLocaleDateString()}</span>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-700">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-md ${statusColors[goal.status]}`}>
-                            {goal.status?.charAt(0).toUpperCase() + (goal.status?.slice(1) || '') || 'Unknown'}
-                          </span>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {goal.goal_type?.charAt(0).toUpperCase() + (goal.goal_type?.slice(1).replace('_', ' ') || '') || 'Unknown'}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   );
@@ -568,7 +570,7 @@ export const Goals = () => {
           {completedGoals.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold text-secondary-900 dark:text-secondary-100 mb-3">Completed Goals ({completedGoals.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
                 {completedGoals.map((goal) => {
                   return (
                     <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-green-200 dark:border-green-800 p-4 shadow-md opacity-95">
@@ -630,7 +632,7 @@ export const Goals = () => {
                           {goal.status === 'paused' && (
                             <button
                               onClick={() => handleToggleStatus(goal, 'active')}
-                              className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                              className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
                               title="Resume goal"
                             >
                               <Play className="h-4 w-4" />
@@ -645,7 +647,7 @@ export const Goals = () => {
                           </button>
                           <button
                             onClick={() => handleDeleteGoal(goal)}
-                            className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1 text-secondary-500 dark:text-secondary-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                             title="Delete goal"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -784,34 +786,7 @@ export const Goals = () => {
                   placeholder="Optional: Add details about your goal..."
                 />
 
-                {/* Color Theme */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Color Theme
-                  </label>
-                  <div className="flex space-x-2">
-                    {colors.map(color => (
-                      <ColorPickerButton
-                        key={color}
-                        color={color}
-                        isSelected={formData.color === color}
-                        onClick={() => setFormData(prev => ({ ...prev, color }))}
-                      />
-                    ))}
-                  </div>
-                </div>
 
-                {/* Priority */}
-                <Select
-                  label="Priority"
-                  value={formData.priority}
-                  onChange={(value) => setFormData(prev => ({ ...prev, priority: Number(value) }))}
-                  options={[
-                    { value: 0, label: "Normal" },
-                    { value: 1, label: "High" },
-                    { value: 2, label: "Urgent" },
-                  ]}
-                />
 
                 {/* Goal Images */}
                 <div>
@@ -819,7 +794,7 @@ export const Goals = () => {
                     Goal Images
                   </label>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                    Add inspiring images to visualize your goal.
+                    Upload inspiring images for your goal. The first image will be used as the thumbnail.
                   </p>
                   <ImageUpload
                     images={formData.images || []}
@@ -832,29 +807,48 @@ export const Goals = () => {
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={handleCloseModal}
-              className="px-6 py-3 text-secondary-600 dark:text-secondary-400 hover:text-gray-800 transition-colors font-medium rounded-lg"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !formData.name.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3 inline-block"></div>
-                  {editingGoal ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                editingGoal ? 'Update Goal' : 'Create Goal'
-              )}
-            </button>
+          <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+            {editingGoal ? (
+              <button
+                type="button"
+                onClick={() => {
+                  handleCloseModal();
+                  handleDeleteGoal(editingGoal);
+                }}
+                className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium shadow-md flex items-center space-x-2"
+                disabled={isSubmitting}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete Goal</span>
+              </button>
+            ) : (
+              <div></div>
+            )}
+
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="px-6 py-3 text-secondary-600 dark:text-secondary-400 hover:text-gray-800 transition-colors font-medium rounded-lg"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !formData.name.trim()}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3 inline-block"></div>
+                    {editingGoal ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  editingGoal ? 'Update Goal' : 'Create Goal'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </Modal>

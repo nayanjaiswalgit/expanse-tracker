@@ -233,7 +233,7 @@ export const Dashboard: React.FC = () => {
   }
 
   const summary = summaryQuery.data;
-  const accounts = accountsQuery.data?.results || [];
+  const accounts = accountsQuery.data || [];
   const totalBalance = summary?.account_balances?.reduce((sum, acc) => sum + parseFloat(acc.balance), 0) ||
                      accounts.reduce((sum, acc) => sum + parseFloat(acc.balance || '0'), 0) || 0;
   const primaryAccount = accounts[0];
@@ -327,7 +327,17 @@ export const Dashboard: React.FC = () => {
                       <div className="text-sm opacity-75 mt-1">{maskAccountNumber(primaryAccount.account_number)}</div>
                     </div>
                     <div className="bg-white/20 px-3 py-1 rounded text-sm font-bold">
-                      {primaryAccount.institution || primaryAccount.currency}
+                      {(() => {
+                      const text = primaryAccount.institution || primaryAccount.currency || '';
+                      const maxLength = 16;
+                      if (text.length > maxLength) {
+                        return text
+                        .split(' ')
+                        .map(word => word.charAt(0))
+                        .join('');
+                      }
+                      return text;
+                      })()}
                     </div>
                   </div>
                   <div className="flex justify-between items-end">
@@ -549,23 +559,13 @@ export const Dashboard: React.FC = () => {
                 <div className="space-y-3">
                   {displayTransactions.length > 0 ? (
                     displayTransactions.map((transaction, index) => {
-                    // Get category name from categories data
-                    const categories = categoriesQuery.data?.results || [];
-                    const category = categories.find((cat: any) =>
-                      cat.id == transaction.category_id || cat.id === String(transaction.category_id)
-                    );
-                    const categoryName = category?.name || 'Uncategorized';
-
-                    // Get account name from accounts data
-                    const accounts = accountsQuery.data?.results || [];
-                    const account = accounts.find((acc: any) =>
-                      acc.id == transaction.account_id || acc.id === String(transaction.account_id)
-                    );
-                    const accountName = account?.name || 'Unknown Account';
+                    // Use transaction data directly from API (account_name and category_name are included)
+                    const categoryName = transaction.category_name || 'Uncategorized';
+                    const accountName = transaction.account_name || 'Unknown Account';
 
                     // Helper function to get category display using backend icon
                     const getCategoryDisplay = (categoryId: number | undefined | null, categoryName: string | number | undefined | null) => {
-                      const categories = categoriesQuery.data?.results || [];
+                      const categories = categoriesQuery.data || [];
                       const category = categories.find((cat: any) => cat.id === categoryId);
                       const categoryIcon = category?.icon || '💼';
 

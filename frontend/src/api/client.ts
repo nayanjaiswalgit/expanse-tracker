@@ -632,20 +632,12 @@ class ApiClient {
     return response.data;
   }
 
-  async bulkUpdateTransactions(transactionIds: number[], updates: {
-    accountId?: number;
-    categoryId?: string;
-    tags?: string[];
-    verified?: boolean;
-  }): Promise<{ updated_count: number }> {
-    const data: Record<string, unknown> = { transaction_ids: transactionIds };
-    
-    if (updates.accountId !== undefined) data.account_id = updates.accountId;
-    if (updates.categoryId !== undefined) data.category_id = updates.categoryId;
-    if (updates.tags !== undefined) data.tags = updates.tags;
-    if (updates.verified !== undefined) data.verified = updates.verified;
-
-    const response = await this.client.post('/transactions/bulk_update/', data);
+  async bulkUpdateTransactions(updates: Array<{ id: number; [key: string]: unknown }>): Promise<{
+    updated_count: number;
+    updated_transactions: Transaction[];
+    errors: Array<{ id?: number; error?: string; errors?: Record<string, string[]> }>;
+  }> {
+    const response = await this.client.patch('/transactions/bulk-update/', { updates });
     return response.data;
   }
 

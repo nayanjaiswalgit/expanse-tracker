@@ -34,6 +34,7 @@ class Goal(UserOwnedModel):
     start_date = models.DateField(null=True, blank=True)
     currency = models.CharField(max_length=3, default='USD')
     color = models.CharField(max_length=7, null=True, blank=True)  # Hex color code
+    thumbnail_image = models.URLField(max_length=500, null=True, blank=True)  # Primary thumbnail image
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
 
     class Meta:

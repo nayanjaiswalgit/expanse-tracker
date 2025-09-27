@@ -16,6 +16,7 @@ import { Dashboard } from './features/dashboard/Dashboard';
 import { TransactionTable } from './features/finance/TransactionTable';
 import { AccountsManagement } from './features/finance/AccountsManagement';
 import { Goals } from './features/finance/Goals';
+import { GoalDetailPage } from './features/finance/GoalDetailPage';
 import { LendingTracker } from './features/finance/LendingTracker';
 import { GroupExpenses } from './features/finance/GroupExpenses';
 import ExpenseTracker from './features/finance/ExpenseTracker';
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
                             { path: 'accounts', element: withErrorBoundary(AccountsManagement) },
                             { path: 'subscriptions', element: <Navigate to="/settings" replace /> },
                             { path: 'goals', element: withErrorBoundary(Goals) },
+                            { path: 'goals/:goalId', element: withErrorBoundary(GoalDetailPage) },
                             { path: 'expenses', element: withErrorBoundary(ExpenseTracker) },
                             { path: 'lending', element: withErrorBoundary(LendingTracker) },
                             { path: 'group-expenses', element: withErrorBoundary(GroupExpenses) },

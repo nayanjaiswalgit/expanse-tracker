@@ -171,6 +171,7 @@ export interface Goal {
   start_date?: string;
   currency?: string;
   color?: string;
+  thumbnail_image?: string;
   status: 'active' | 'paused' | 'completed' | 'cancelled';
   progress_percentage: number;
   remaining_amount: string;

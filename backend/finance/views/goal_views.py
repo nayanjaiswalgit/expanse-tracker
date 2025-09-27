@@ -34,6 +34,28 @@ class GoalViewSet(viewsets.ModelViewSet):
         goal = serializer.save()
         self._handle_image_uploads(goal, self.request)
 
+    def _handle_thumbnail_upload(self, goal, request):
+        """Handle thumbnail image upload for a goal"""
+        thumbnail_file = request.FILES.get('thumbnail_image')
+
+        if thumbnail_file and thumbnail_file.content_type.startswith('image/'):
+            try:
+                # Generate unique filename
+                file_extension = thumbnail_file.name.split('.')[-1]
+                filename = f"goals/{goal.id}/thumbnail_{uuid.uuid4()}.{file_extension}"
+
+                # Save file
+                path = default_storage.save(filename, ContentFile(thumbnail_file.read()))
+                thumbnail_url = default_storage.url(path)
+
+                # Update goal with thumbnail URL
+                goal.thumbnail_image = thumbnail_url
+                goal.save()
+
+            except Exception as e:
+                # Log error but don't fail the goal creation
+                print(f"Error uploading thumbnail: {e}")
+
     def _handle_image_uploads(self, goal, request):
         """Handle image uploads for a goal"""
         uploaded_files = request.FILES.getlist('images')
@@ -56,14 +78,23 @@ class GoalViewSet(viewsets.ModelViewSet):
                     # Get caption if provided
                     caption = captions[i] if i < len(captions) else ""
 
+                    # Check if this is the first image
+                    is_first_image = goal.images.count() == 0
+
                     # Create GoalImage record
                     GoalImage.objects.create(
                         goal=goal,
                         image_url=image_url,
                         thumbnail_url=thumbnail_url,
                         caption=caption,
-                        is_primary=goal.images.count() == 0  # First image is primary
+                        is_primary=is_first_image  # First image is primary
                     )
+
+                    # Set the first image as the goal's thumbnail
+                    if is_first_image:
+                        goal.thumbnail_image = image_url
+                        goal.save()
+
                 except Exception as e:
                     # Log error but don't fail the goal creation
                     print(f"Error uploading image: {e}")

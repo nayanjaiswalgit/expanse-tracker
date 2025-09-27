@@ -525,6 +525,86 @@ class TransactionViewSet(viewsets.ModelViewSet):
         except Exception as e:
             raise Exception(f"CSV processing error: {str(e)}")
 
+    @action(detail=False, methods=["patch"], url_path="bulk-update")
+    def bulk_update(self, request):
+        """
+        Bulk update multiple transactions
+        Expected payload:
+        {
+            "updates": [
+                {
+                    "id": 1,
+                    "category": 5,
+                    "account": 3,
+                    "description": "Updated description",
+                    "amount": "100.50",
+                    "tags": [1, 2, 3]
+                    // ... other fields
+                },
+                {
+                    "id": 2,
+                    "category": 6,
+                    // ... other fields
+                }
+            ]
+        }
+        """
+        updates = request.data.get('updates', [])
+
+        if not updates:
+            return Response(
+                {'detail': 'No updates provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        updated_transactions = []
+        errors = []
+
+        # Process each update
+        for update_data in updates:
+            transaction_id = update_data.get('id')
+            if not transaction_id:
+                errors.append({'error': 'Missing transaction ID', 'data': update_data})
+                continue
+
+            try:
+                # Get the transaction (ensure it belongs to the user)
+                transaction = self.get_queryset().get(id=transaction_id)
+
+                # Update the transaction using the serializer for validation
+                serializer = self.get_serializer(transaction, data=update_data, partial=True)
+
+                if serializer.is_valid():
+                    serializer.save()
+                    updated_transactions.append(serializer.data)
+                else:
+                    errors.append({
+                        'id': transaction_id,
+                        'errors': serializer.errors
+                    })
+
+            except Transaction.DoesNotExist:
+                errors.append({
+                    'id': transaction_id,
+                    'error': 'Transaction not found or access denied'
+                })
+            except Exception as e:
+                errors.append({
+                    'id': transaction_id,
+                    'error': str(e)
+                })
+
+        response_data = {
+            'updated_count': len(updated_transactions),
+            'updated_transactions': updated_transactions,
+            'errors': errors
+        }
+
+        if errors and not updated_transactions:
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
     def _import_excel(self, file):
         """Import transactions from Excel file"""
         try:

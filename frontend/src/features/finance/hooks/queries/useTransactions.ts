@@ -99,6 +99,19 @@ export function useBulkUpdateTransactionAccount() {
   });
 }
 
+export function useBulkUpdateTransactions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (updates: Array<{ id: number; [key: string]: unknown }>) =>
+      apiClient.bulkUpdateTransactions(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.summary() });
+    },
+  });
+}
+
 export function useMakeTransactionRecurring() {
   const queryClient = useQueryClient();
 
